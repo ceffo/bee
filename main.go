@@ -4,12 +4,29 @@ import (
 	"fmt"
 	"os"
 
+	"ceffo.com/bee/app/prompt"
 	"ceffo.com/bee/bee"
 	"ceffo.com/bee/wordsource/reader"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
-	input := bee.NewBeeInput('e', []rune{'c', 'h', 'o', 'u', 'l', 'n'})
+	inputModel := prompt.NewModel()
+	app := tea.NewProgram(inputModel)
+	m, err := app.Run()
+	if err != nil {
+		panic(err)
+	}
+	promptModel := m.(prompt.Model)
+	if promptModel.IsAborted() {
+		fmt.Printf("Aborted\n")
+		return
+	}
+
+	input, err := promptModel.ToBeeInput()
+	if err != nil {
+		panic(err)
+	}
 
 	wordFile, err := os.Open("data/words.txt")
 	if err != nil {
