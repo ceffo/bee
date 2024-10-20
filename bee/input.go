@@ -1,9 +1,16 @@
-package beesolve
+package bee
 
 import (
 	"strings"
 
 	mapset "github.com/deckarep/golang-set/v2"
+)
+
+const (
+	// minWordLength is the minimum length of a word
+	minWordLength = 4
+	// pangramBonus is the bonus for using all the letters
+	pangramBonus = 7
 )
 
 // Input represents the input to the Bee solver
@@ -14,15 +21,15 @@ type Input struct {
 
 func (i Input) Score(word string) int {
 	l := len(word)
-	if l < 4 {
+	if l < minWordLength {
 		return 0
 	}
 	// 4 letters words are worth 1 point
 	// longer words earn 1 point for each letter
-	// using all 7 letters earns a 7 point bonus
-	score := l - 3
+	// using all letters earns a 7 point bonus
+	score := l - minWordLength + 1
 	if l >= len(i.letters) && i.IsPangram(word) {
-		score += 7
+		score += pangramBonus
 	}
 	return score
 }

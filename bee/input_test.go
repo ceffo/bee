@@ -1,4 +1,4 @@
-package beesolve
+package bee
 
 import (
 	"testing"

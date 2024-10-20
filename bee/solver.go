@@ -1,27 +1,28 @@
-package beesolve
+package bee
 
 import (
 	"strings"
 
-	"ceffo.com/bee/wordsource"
 	mapset "github.com/deckarep/golang-set/v2"
+
+	"ceffo.com/bee/wordsource"
 )
 
-type BeeSolve struct {
+type Solver struct {
 	wordSource wordsource.Source
 }
 
-func NewBeeSolve(wordSource wordsource.Source) *BeeSolve {
-	return &BeeSolve{wordSource: wordSource}
+func NewSolver(wordSource wordsource.Source) *Solver {
+	return &Solver{wordSource: wordSource}
 }
 
-func (t *BeeSolve) SolveFor(input Input) wordsource.Stream {
+func (t *Solver) SolveFor(input Input) wordsource.Stream {
 	result := make(chan string)
 
 	go func() {
 		defer close(result)
 		for word := range t.wordSource.GetWords() {
-			if meetsBeeRequirements(word, input) {
+			if satisfies(word, input) {
 				result <- strings.ToUpper(word)
 			}
 		}
@@ -29,10 +30,12 @@ func (t *BeeSolve) SolveFor(input Input) wordsource.Stream {
 	return result
 }
 
-func meetsBeeRequirements(word string, input Input) bool {
-	if len(word) < 4 {
+// satisfies returns true if the word satisfies the input
+func satisfies(word string, input Input) bool {
+	if len(word) < minWordLength {
 		return false
 	}
+
 	wordRunes := []rune(strings.ToLower(word))
 	wordSet := mapset.NewSet(wordRunes...)
 	letters := mapset.NewSet(input.letters...)

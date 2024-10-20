@@ -1,12 +1,13 @@
-package beesolve
+package bee
 
 import (
 	"strings"
 	"testing"
 
-	"ceffo.com/bee/wordsource"
 	fakeit "github.com/brianvoe/gofakeit/v7"
 	"github.com/stretchr/testify/assert"
+
+	"ceffo.com/bee/wordsource"
 )
 
 type TestWordSource struct {
@@ -14,9 +15,12 @@ type TestWordSource struct {
 }
 
 func NewFakeTestWordSource(numWords, seed int) *TestWordSource {
-	fakeit.Seed(seed)
+	err := fakeit.Seed(seed)
+	if err != nil {
+		panic(err)
+	}
 	words := make([]string, numWords)
-	for i := 0; i < numWords; i++ {
+	for i := range numWords {
 		fakeWord := strings.ToLower(fakeit.Word())
 		words[i] = fakeWord
 	}
@@ -49,7 +53,7 @@ func TestBeesolve_SolveFor(t *testing.T) {
 		"runny",
 	}
 	wordSource := NewFixedTestWordSource(words)
-	tr := NewBeeSolve(wordSource)
+	tr := NewSolver(wordSource)
 
 	tests := []struct {
 		input Input
@@ -78,7 +82,6 @@ func TestBeesolve_SolveFor(t *testing.T) {
 				words = append(words, word)
 			}
 			assert.ElementsMatch(t, tt.want, words)
-
 		})
 	}
 }
