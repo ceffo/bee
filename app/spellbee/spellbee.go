@@ -112,7 +112,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	msgs := common.NewMsgBatch()
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width - 1
+		m.width = msg.Width - 2
 		m.height = msg.Height
 	case tea.KeyMsg:
 		switch msg.Type {
