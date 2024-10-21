@@ -18,7 +18,6 @@ func NewSolver(wordSource wordsource.Source) *Solver {
 
 func (t *Solver) SolveFor(input Input) wordsource.Stream {
 	result := make(chan string)
-
 	go func() {
 		defer close(result)
 		for word := range t.wordSource.GetWords() {

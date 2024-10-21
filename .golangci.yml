@@ -111,6 +111,9 @@ linters-settings:
         disabled: true
       - name: unused-parameter
       - name: unused-receiver
+  gocritic:
+    disabled-checks:
+      - hugeParam
 
 issues:
   exclude-rules:

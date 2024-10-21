@@ -4,37 +4,36 @@ import (
 	"fmt"
 	"os"
 
-	"ceffo.com/bee/app/prompt"
-	"ceffo.com/bee/bee"
-	"ceffo.com/bee/wordsource/reader"
 	tea "github.com/charmbracelet/bubbletea"
+
+	"ceffo.com/bee/app/spellbee"
+	"ceffo.com/bee/wordsource/reader"
 )
 
 func main() {
-	inputModel := prompt.NewModel()
-	app := tea.NewProgram(inputModel)
-	m, err := app.Run()
+	err := runApp()
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
 	}
-	promptModel := m.(prompt.Model)
-	if promptModel.IsAborted() {
-		fmt.Printf("Aborted\n")
-		return
-	}
+}
 
-	input, err := promptModel.ToBeeInput()
-	if err != nil {
-		panic(err)
-	}
-
+func runApp() error {
 	wordFile, err := os.Open("data/words.txt")
 	if err != nil {
 		panic(err)
 	}
 	defer wordFile.Close()
-	beesolve := bee.NewSolver(reader.NewReaderSource(wordFile))
-	for word := range beesolve.SolveFor(input) {
-		fmt.Printf("%s %d\n", word, input.Score(word))
+
+	model := spellbee.NewModel(reader.NewReaderSource(wordFile))
+	opts := []tea.ProgramOption{}
+
+	// are we debugging? don't go alt screen
+	if os.Getenv("DEBUG") == "" {
+		opts = append(opts, tea.WithAltScreen())
 	}
+
+	app := tea.NewProgram(model, opts...)
+	_, err = app.Run()
+	return err
 }

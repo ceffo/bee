@@ -11,6 +11,8 @@ const (
 	minWordLength = 4
 	// pangramBonus is the bonus for using all the letters
 	pangramBonus = 7
+	// NumLetters is the number of letters in a game
+	NumLetters = 7
 )
 
 // Input represents the input to the Bee solver
@@ -32,6 +34,10 @@ func (i Input) Score(word string) int {
 		score += pangramBonus
 	}
 	return score
+}
+
+func (i Input) Center() rune {
+	return i.center
 }
 
 func (i Input) IsPangram(word string) bool {
