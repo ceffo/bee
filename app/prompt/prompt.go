@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"ceffo.com/bee/app/common"
+	"ceffo.com/bee/app/palette"
 	"ceffo.com/bee/bee"
 )
 
@@ -123,11 +124,11 @@ func validateNewRune(r rune, letters []rune) error {
 
 var (
 	baseStyle         = lipgloss.NewStyle().Align(lipgloss.Left)
-	promptStyle       = baseStyle.Foreground(lipgloss.Color("#931e93"))
-	doneStyle         = baseStyle.Foreground(lipgloss.Color("#00ff00"))
-	errorStyle        = baseStyle.Foreground(lipgloss.Color("#ff0000"))
-	CenterLetterStyle = baseStyle.Foreground(lipgloss.Color("#c8970e")).Bold(true)
-	OtherLetterStyle  = baseStyle.Foreground(lipgloss.Color("#ede2c4")).Bold(false)
+	promptStyle       = baseStyle.Inherit(palette.Prompt)
+	doneStyle         = baseStyle.Inherit(palette.Positive)
+	errorStyle        = baseStyle.Inherit(palette.Error)
+	CenterLetterStyle = baseStyle.Inherit(palette.Secondary).Bold(true)
+	OtherLetterStyle  = baseStyle.Inherit(palette.Primary)
 )
 
 // View returns the view for the model
@@ -148,7 +149,7 @@ func (m Model) View() string {
 	strHeader := promptStyle.Render("Enter 7 letters")
 	if m.valid {
 		strHeader = lipgloss.JoinHorizontal(lipgloss.Left, strHeader,
-			doneStyle.Margin(0, 2).Render("press Enter to search for words"))
+			doneStyle.Margin(0, 2).Render("press Enter to start solving"))
 	}
 	if m.err != nil {
 		strError = errorStyle.Render(m.err.Error())
@@ -158,7 +159,5 @@ func (m Model) View() string {
 		strHeader,
 		strLetters,
 		strError,
-		// fmt.Sprintf("Timer is running: %v, id=%d timeout=%s", m.errMsgTimer.Running(), m.timerID, m.errMsgTimer.View()),
-		// fmt.Sprintf("Valid=%v Done=%v", m.valid, m.done),
 	)
 }

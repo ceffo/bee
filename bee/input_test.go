@@ -110,7 +110,7 @@ func TestInput_Score(t *testing.T) {
 		{
 			name: "4 letters",
 			fields: fields{
-				letters: []rune{'a', 'b', 'c'},
+				letters: []rune{'a', 'b', 'c', 'd', 'e', 'f', 'g'},
 			},
 			args: args{
 				word: "abca",
@@ -120,12 +120,12 @@ func TestInput_Score(t *testing.T) {
 		{
 			name: "5 letters",
 			fields: fields{
-				letters: []rune{'a', 'b', 'c'},
+				letters: []rune{'a', 'b', 'c', 'd', 'e', 'f', 'g'},
 			},
 			args: args{
 				word: "abcab",
 			},
-			want: 2,
+			want: 5,
 		},
 		{
 			name: "7 letters - not pangram",
@@ -135,7 +135,7 @@ func TestInput_Score(t *testing.T) {
 			args: args{
 				word: "abcdefa",
 			},
-			want: 4,
+			want: 7,
 		},
 		{
 			name: "7 letters - pangram",
@@ -145,7 +145,7 @@ func TestInput_Score(t *testing.T) {
 			args: args{
 				word: "abcdefg",
 			},
-			want: 11,
+			want: 14,
 		},
 		{
 			name: "7 letters - longer pangram",
@@ -155,7 +155,7 @@ func TestInput_Score(t *testing.T) {
 			args: args{
 				word: "abcdefgaa",
 			},
-			want: 13,
+			want: 16,
 		},
 	}
 	for _, tt := range tests {

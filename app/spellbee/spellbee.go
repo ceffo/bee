@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
 
 	"github.com/charmbracelet/bubbles/paginator"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/log"
 
 	"ceffo.com/bee/app/common"
+	"ceffo.com/bee/app/palette"
 	"ceffo.com/bee/app/prompt"
 	"ceffo.com/bee/bee"
 	"ceffo.com/bee/wordsource"
@@ -38,8 +39,8 @@ const (
 )
 
 type Model struct {
-	wordSource wordsource.Source
-	solver     *bee.Solver
+	wordSourceMaker wordsource.SourceMaker
+	solver          *bee.Solver
 
 	prompt    prompt.Model
 	paginator paginator.Model
@@ -53,28 +54,34 @@ type Model struct {
 	height int
 }
 
-func NewModel(wordSource wordsource.Source) Model {
-	pg := paginator.New()
-	pg.Type = paginator.Dots
+func NewModel(wordSourceMaker wordsource.SourceMaker) Model {
+	log.Info("Creating new spellbee model")
 	return Model{
-		state:      statePrompt,
-		wordSource: wordSource,
-		solver:     bee.NewSolver(wordSource),
-		prompt:     prompt.New(),
-		paginator:  pg,
+		state:           statePrompt,
+		wordSourceMaker: wordSourceMaker,
+		solver:          bee.NewSolver(wordSourceMaker()),
+		prompt:          prompt.New(),
+		paginator:       newPaginator(),
 	}
 }
 
-func (m Model) reset() Model {
+func newPaginator() paginator.Model {
 	pg := paginator.New()
 	pg.Type = paginator.Dots
+	pg.ActiveDot = palette.Secondary.Render("●")
+	pg.InactiveDot = palette.Primary.Faint(true).Render("○")
+	return pg
+}
+
+func (m Model) reset() Model {
+	log.Info("Resetting spellbee model")
 
 	m.state = statePrompt
 	m.input = nil
 	m.results = nil
-	m.solver = bee.NewSolver(m.wordSource)
+	m.solver = bee.NewSolver(m.wordSourceMaker())
 	m.prompt = prompt.New()
-	m.paginator = pg
+	m.paginator = newPaginator()
 	return m
 }
 
@@ -87,8 +94,8 @@ type newResultMsg struct {
 type resultsDoneMsg struct{}
 
 func listenToResults(stream wordsource.Stream, input bee.Input) tea.Cmd {
+	log.Debug("Listening to results")
 	return func() tea.Msg {
-		time.Sleep(20 * time.Millisecond)
 		word, ok := <-stream
 		if !ok {
 			return resultsDoneMsg{}
@@ -105,6 +112,7 @@ func listenToResults(stream wordsource.Stream, input bee.Input) tea.Cmd {
 }
 
 func (m Model) Init() tea.Cmd {
+	log.Info("Initializing spellbee model")
 	return tea.Batch(m.prompt.Init())
 }
 
@@ -112,6 +120,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	msgs := common.NewMsgBatch()
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
+		log.Info("Updating window size")
 		m.width = msg.Width - 2
 		m.height = msg.Height
 	case tea.KeyMsg:
@@ -124,6 +133,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	case prompt.DoneMsg:
+		log.Info("Received prompt done message")
 		if msg.Valid {
 			input := msg.BeeInput
 			m.state = stateRetrieving
@@ -135,12 +145,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.results = append(m.results, msg.result)
 		msgs.Add(listenToResults(msg.stream, msg.input))
 	case resultsDoneMsg:
+		log.Info("Received results done message")
 		m.state = stateRetrieved
 	}
 
 	switch m.state {
 	case statePrompt:
-		//var promptCmd tea.Cmd
 		promptModel, promptCmd := m.prompt.Update(msg)
 		m.prompt = promptModel.(prompt.Model)
 		msgs.Add(promptCmd)
@@ -162,15 +172,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 var (
-	titleStyle = lipgloss.NewStyle().
+	titleStyle = palette.Secondary.
 		Align(lipgloss.Center).
 		Border(lipgloss.RoundedBorder()).
-		Foreground(lipgloss.Color("#c8970e")).
 		Bold(true)
 )
 
 func (m Model) View() string {
-	headerView := titleStyle.Width(m.width).Render("Spell Bee")
+	headerView := titleStyle.Width(m.width).Render("Spelling Bee")
 	headerView = lipgloss.JoinVertical(lipgloss.Left, headerView, m.prompt.View())
 	var contentView string
 	contentWidth := m.width
@@ -218,8 +227,8 @@ func (m Model) renderResults(width, height int) string {
 	}
 	results := m.results[startIdx:endIdx]
 
-	styleWord := lipgloss.NewStyle().Width(maxWordLength).Align(lipgloss.Left)
-	styleScore := lipgloss.NewStyle().Width(scoreWidth).Align(lipgloss.Right).Foreground(lipgloss.Color("#FF00FF"))
+	styleWord := palette.Primary.Width(maxWordLength).Align(lipgloss.Left)
+	styleScore := palette.Prompt.Width(scoreWidth).Align(lipgloss.Right)
 	xIdx := 0
 	sb := strings.Builder{}
 	for _, r := range results {
@@ -250,7 +259,7 @@ func renderWord(word string, highlightedChar rune) string {
 	sb := strings.Builder{}
 	for _, l := range word {
 		if l == highlightedChar {
-			sb.WriteString(prompt.CenterLetterStyle.Render(string(l)))
+			sb.WriteString(prompt.CenterLetterStyle.Bold(true).Render(string(l)))
 		} else {
 			sb.WriteString(prompt.OtherLetterStyle.Render(string(l)))
 		}

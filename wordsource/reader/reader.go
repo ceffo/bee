@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"ceffo.com/bee/wordsource"
+	"github.com/charmbracelet/log"
 )
 
 // ReaderSource is a source that reads words from an io.Reader
@@ -22,13 +23,16 @@ func NewReaderSource(reader io.Reader) *ReaderSource {
 
 // GetWords reads words from the reader
 func (rs ReaderSource) GetWords() wordsource.Stream {
+	log.Info("Reading words from reader")
 	result := make(chan string)
 	go func() {
+		log.Info("Start scanning words")
 		defer close(result)
 		scanner := bufio.NewScanner(rs.reader)
 		for scanner.Scan() {
 			result <- scanner.Text()
 		}
+		log.Info("Finished scanning words")
 	}()
 	return result
 }

@@ -29,7 +29,10 @@ func (i Input) Score(word string) int {
 	// 4 letters words are worth 1 point
 	// longer words earn 1 point for each letter
 	// using all letters earns a 7 point bonus
-	score := l - minWordLength + 1
+	score := 1
+	if l > minWordLength {
+		score = l
+	}
 	if l >= len(i.letters) && i.IsPangram(word) {
 		score += pangramBonus
 	}

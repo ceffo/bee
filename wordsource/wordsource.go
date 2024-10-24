@@ -7,3 +7,5 @@ type Stream chan string
 type Source interface {
 	GetWords() Stream
 }
+
+type SourceMaker func() Source
