@@ -125,12 +125,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 	case tea.KeyMsg:
 		switch msg.Type {
-		case tea.KeyCtrlC, tea.KeyEsc:
+		case tea.KeyCtrlC:
+			return m, tea.Quit
+		case tea.KeyRunes:
+			if msg.String() == "q" {
+				return m, tea.Quit
+			}
+		case tea.KeyEsc:
+			switch m.state {
+			case statePrompt:
+				return m, tea.Quit
+			default:
+				return m.reset(), nil
+			}
+		case tea.KeyBackspace:
 			if m.state == stateRetrieved {
 				// reset the model
 				return m.reset(), nil
 			}
-			return m, tea.Quit
 		}
 	case prompt.DoneMsg:
 		log.Info("Received prompt done message")
@@ -179,16 +191,31 @@ var (
 )
 
 func (m Model) View() string {
-	headerView := titleStyle.Width(m.width).Render("Spelling Bee")
-	headerView = lipgloss.JoinVertical(lipgloss.Left, headerView, m.prompt.View())
-	var contentView string
-	contentWidth := m.width
+	elements := []string{}
+	titleView := titleStyle.Width(m.width).Render("BeeSolve")
+	elements = append(elements, titleView)
+
+	promptStyle := lipgloss.NewStyle().Align(lipgloss.Center).Width(m.width).Margin(1, 0)
+	if m.state == statePrompt {
+		promptStyle = lipgloss.NewStyle().Align(lipgloss.Left).Margin(1, 1)
+	}
+	promptView := promptStyle.Render(m.prompt.View())
+	elements = append(elements, promptView)
+
+	headerView := ""
 	switch m.state {
 	case stateRetrieving:
-		headerView += fmt.Sprintf("\n\nRetrieving words... (%d found)", len(m.results))
+		headerView += fmt.Sprintf("Retrieving words... (%d found)", len(m.results))
 	case stateRetrieved:
-		headerView += fmt.Sprintf("\n\nFound %d words", len(m.results))
+		headerView += fmt.Sprintf("Found %d words", len(m.results))
 	}
+	if headerView != "" {
+		headerView = lipgloss.NewStyle().Align(lipgloss.Left).MarginLeft(1).Render(headerView)
+		elements = append(elements, headerView)
+	}
+
+	contentView := ""
+	contentWidth := m.width
 	if m.state == stateRetrieving || m.state == stateRetrieved {
 		headerHeight := strings.Count(headerView, "\n")
 		contentHeight := resultHeight
@@ -198,10 +225,13 @@ func (m Model) View() string {
 			contentView = m.renderResults(contentWidth, contentHeight)
 		}
 	}
+	if contentView != "" {
+		elements = append(elements, contentView)
+	}
+
 	view := lipgloss.JoinVertical(
 		lipgloss.Left,
-		lipgloss.NewStyle().Align(lipgloss.Left).Render(headerView),
-		contentView,
+		elements...,
 	)
 	return view
 }
@@ -210,7 +240,7 @@ func (m Model) renderResults(width, height int) string {
 	style := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		Width(width).
-		MaxHeight(height + 1)
+		MaxHeight(height + 2)
 
 	if len(m.results) == 0 {
 		return style.Render("No words found")
@@ -231,14 +261,16 @@ func (m Model) renderResults(width, height int) string {
 	styleScore := palette.Prompt.Width(scoreWidth).Align(lipgloss.Right)
 	xIdx := 0
 	sb := strings.Builder{}
-	for _, r := range results {
+	for i, r := range results {
 		word := renderWord(r.word, m.input.Center())
 		score := strconv.Itoa(r.score)
 		sb.WriteString(styleWord.Render(word))
 		sb.WriteString(styleScore.Render(score))
 		xIdx++
 		if xIdx == columns {
-			sb.WriteString("\n")
+			if i != len(results)-1 {
+				sb.WriteString("\n")
+			}
 			xIdx = 0
 		} else {
 			sb.WriteString(columInterspace)
@@ -249,7 +281,8 @@ func (m Model) renderResults(width, height int) string {
 		render = lipgloss.JoinVertical(
 			lipgloss.Center,
 			render,
-			lipgloss.NewStyle().MarginTop(1).Align(lipgloss.Center).Render(m.paginator.View()))
+			lipgloss.NewStyle().Align(lipgloss.Center).Render(m.paginator.View()),
+		)
 	}
 	return render
 }
