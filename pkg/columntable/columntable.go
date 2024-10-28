@@ -3,17 +3,18 @@ package columntable
 
 import (
 	"strings"
-	"unicode/utf8"
 
-	"ceffo.com/bee/app/common"
 	"github.com/charmbracelet/bubbles/paginator"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/log"
+
+	"ceffo.com/bee/app/common"
 )
 
 const (
 	extraHeight      = 1 // extra height for the paginator
-	defaultSeparator = ".│."
+	defaultSeparator = " │ "
 )
 
 var (
@@ -29,13 +30,7 @@ type Model struct {
 	separator  string
 
 	paginator paginator.Model
-}
-
-// events
-
-type SetSize struct {
-	Width  int
-	Height int
+	log       *log.Logger
 }
 
 type Option func(*Model)
@@ -54,23 +49,33 @@ func WithDotPaginator(activeDot, inactiveDot string) Option {
 	}
 }
 
+func WithItemWidth(width int) Option {
+	return func(m *Model) {
+		m.itemWidth = width
+	}
+}
+
 // New creates a new columntable model
-func New(opts ...Option) *Model {
+func New(opts ...Option) Model {
 	pg := paginator.New()
 
-	model := &Model{
+	model := Model{
 		paginator: pg,
 		separator: defaultSeparator,
+		log:       log.Default().WithPrefix("[columntable] "),
 	}
 	for _, opt := range opts {
-		opt(model)
+		opt(&model)
 	}
 	return model
 }
 
-func (m *Model) SetItems(items []string, itemsWidth int) {
+func (m *Model) SetItemWidth(width int) {
+	m.itemWidth = width
+}
+
+func (m *Model) SetItems(items []string) {
 	m.items = items
-	m.itemWidth = itemsWidth
 }
 
 // Init initializes the model
@@ -79,29 +84,27 @@ func (m Model) Init() tea.Cmd {
 }
 
 // Update updates the model
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	msgs := common.NewMsgBatch()
-
-	switch msg := msg.(type) {
-	case SetSize:
-		m.width = max(msg.Width, 0)
-		m.height = max((msg.Height - extraHeight), 0)
-		if m.width != 0 || m.height != 0 {
-			m.updatePaginator()
-		}
-	}
-
-	// update paginator
-	paginatorModel, paginatorCmd := m.paginator.Update(msg)
-	m.paginator = paginatorModel
-	msgs.Add(paginatorCmd)
-
+	msgs.Add(m.updatePaginator(msg))
 	return m, nil
 }
 
-func (m *Model) updatePaginator() {
-	s := utf8.RuneCountInString(defaultSeparator)
-	m.numColumns = (m.width + s) / (m.itemWidth + s)
+func (m *Model) SetSize(width, height int) {
+	m.width = max(width, 0)
+	m.height = max(height, 0)
+}
+
+func (m *Model) updatePaginator(msg tea.Msg) tea.Cmd {
+	m.calcPaginator()
+	paginatorModel, paginatorCmd := m.paginator.Update(msg)
+	m.paginator = paginatorModel
+	return paginatorCmd
+}
+
+func (m *Model) calcPaginator() {
+	sepWidth := lipgloss.Width(m.separator)
+	m.numColumns = (m.width + sepWidth) / (m.itemWidth + sepWidth)
 
 	if m.numColumns == 0 {
 		m.paginator.PerPage = 0
@@ -110,7 +113,6 @@ func (m *Model) updatePaginator() {
 	}
 
 	totalRows := len(m.items) / m.numColumns
-	// setup paginator
 	m.paginator.PerPage = m.height - extraHeight
 	m.paginator.SetTotalPages(totalRows)
 }
@@ -123,8 +125,12 @@ item7 │       │
 
 // View renders the model
 func (m Model) View() string {
-	return lipgloss.JoinVertical(lipgloss.Top,
-		m.renderTable(),
+	tableView := lipgloss.NewStyle().Width(m.width).Border(lipgloss.RoundedBorder()).Render(m.renderTable())
+	if m.paginator.TotalPages <= 1 {
+		return tableView
+	}
+	return lipgloss.JoinVertical(lipgloss.Center,
+		tableView,
 		m.paginator.View(),
 	)
 }
@@ -156,7 +162,6 @@ func (m Model) renderTable() string {
 			sb.WriteString(defaultSeparator)
 		}
 	}
-	sb.WriteString("\n")
 
 	return sb.String()
 }

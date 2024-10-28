@@ -1,8 +1,8 @@
 package slices
 
 // Map
-func Map(s []string, f func(string) string) []string {
-	result := make([]string, len(s))
+func Map[T any, U any](s []T, f func(T) U) []U {
+	result := make([]U, len(s))
 	for i, v := range s {
 		result[i] = f(v)
 	}

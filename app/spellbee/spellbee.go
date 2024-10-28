@@ -6,7 +6,6 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/charmbracelet/bubbles/paginator"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
@@ -15,14 +14,16 @@ import (
 	"ceffo.com/bee/app/palette"
 	"ceffo.com/bee/app/prompt"
 	"ceffo.com/bee/bee"
+	"ceffo.com/bee/pkg/columntable"
+	"ceffo.com/bee/pkg/slices"
 	"ceffo.com/bee/wordsource"
 )
 
 const (
-	maxWordLength   = 15
-	scoreWidth      = 4
-	columInterspace = " │ "
-	resultHeight    = 20
+	wordWidth    = 15
+	scoreWidth   = 3
+	maxItemWidth = wordWidth + scoreWidth
+	headerHeight = 7
 )
 
 type result struct {
@@ -42,8 +43,8 @@ type Model struct {
 	wordSourceMaker wordsource.SourceMaker
 	solver          *bee.Solver
 
-	prompt    prompt.Model
-	paginator paginator.Model
+	prompt      prompt.Model
+	columnTable columntable.Model
 
 	state   state
 	input   *bee.Input
@@ -61,16 +62,18 @@ func NewModel(wordSourceMaker wordsource.SourceMaker) Model {
 		wordSourceMaker: wordSourceMaker,
 		solver:          bee.NewSolver(wordSourceMaker()),
 		prompt:          prompt.New(),
-		paginator:       newPaginator(),
+		columnTable:     newColumnTable(),
 	}
 }
 
-func newPaginator() paginator.Model {
-	pg := paginator.New()
-	pg.Type = paginator.Dots
-	pg.ActiveDot = palette.Secondary.Render("●")
-	pg.InactiveDot = palette.Primary.Faint(true).Render("○")
-	return pg
+func newColumnTable() columntable.Model {
+	return columntable.New(
+		columntable.WithDotPaginator(
+			palette.Secondary.Render("●"),
+			palette.Primary.Faint(true).Render("○"),
+		),
+		columntable.WithItemWidth(maxItemWidth),
+	)
 }
 
 func (m Model) reset() Model {
@@ -81,7 +84,7 @@ func (m Model) reset() Model {
 	m.results = nil
 	m.solver = bee.NewSolver(m.wordSourceMaker())
 	m.prompt = prompt.New()
-	m.paginator = newPaginator()
+	m.columnTable = newColumnTable()
 	return m
 }
 
@@ -120,7 +123,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	msgs := common.NewMsgBatch()
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		log.Info("Updating window size")
 		m.width = msg.Width - 2
 		m.height = msg.Height
 	case tea.KeyMsg:
@@ -156,6 +158,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case newResultMsg:
 		m.results = append(m.results, msg.result)
 		msgs.Add(listenToResults(msg.stream, msg.input))
+		renderedItems := renderResults(m.results, m.input)
+		m.columnTable.SetItems(renderedItems)
 	case resultsDoneMsg:
 		log.Info("Received results done message")
 		m.state = stateRetrieved
@@ -163,24 +167,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch m.state {
 	case statePrompt:
-		promptModel, promptCmd := m.prompt.Update(msg)
-		m.prompt = promptModel.(prompt.Model)
-		msgs.Add(promptCmd)
+		msgs.Add(m.updatePrompt(msg))
 	case stateRetrieving, stateRetrieved:
-		// update items per page
-		columns := m.width / (maxWordLength + scoreWidth + len(columInterspace))
-		numLines := len(m.results) / columns
-		maxLines := resultHeight
-		m.paginator.PerPage = maxLines
-		m.paginator.SetTotalPages(numLines)
-
-		// update paginator
-		var paginatorCmd tea.Cmd
-		m.paginator, paginatorCmd = m.paginator.Update(msg)
-		msgs.Add(paginatorCmd)
+		msgs.Add(m.updateColumnTable(msg))
 	}
 
 	return m, msgs.Cmd()
+}
+
+func (m *Model) updatePrompt(msg tea.Msg) tea.Cmd {
+	newModel, cmd := m.prompt.Update(msg)
+	m.prompt = newModel
+	return cmd
+}
+
+func (m *Model) updateColumnTable(msg tea.Msg) tea.Cmd {
+	m.columnTable.SetSize(m.width, m.height-headerHeight)
+	newModel, cmd := m.columnTable.Update(msg)
+	m.columnTable = newModel
+	return cmd
+}
+
+func renderResults(results []result, input *bee.Input) []string {
+	return slices.Map(results, func(r result) string {
+		return renderResult(r, input)
+	})
 }
 
 var (
@@ -192,10 +203,10 @@ var (
 
 func (m Model) View() string {
 	elements := []string{}
-	titleView := titleStyle.Width(m.width).Render("BeeSolve")
+	titleView := titleStyle.Width(m.width).Render("Bee Solver")
 	elements = append(elements, titleView)
 
-	promptStyle := lipgloss.NewStyle().Align(lipgloss.Center).Width(m.width).Margin(1, 0)
+	promptStyle := lipgloss.NewStyle().Align(lipgloss.Center).Width(m.width)
 	if m.state == statePrompt {
 		promptStyle = lipgloss.NewStyle().Align(lipgloss.Left).Margin(1, 1)
 	}
@@ -215,14 +226,14 @@ func (m Model) View() string {
 	}
 
 	contentView := ""
-	contentWidth := m.width
 	if m.state == stateRetrieving || m.state == stateRetrieved {
-		headerHeight := strings.Count(headerView, "\n")
-		contentHeight := resultHeight
+		headerHeight := lipgloss.Height(headerView)
+		tableView := m.columnTable.View()
+		contentHeight := lipgloss.Height(tableView)
 		if headerHeight+contentHeight > m.height {
 			contentView = "Window too small"
 		} else {
-			contentView = m.renderResults(contentWidth, contentHeight)
+			contentView = tableView
 		}
 	}
 	if contentView != "" {
@@ -236,55 +247,12 @@ func (m Model) View() string {
 	return view
 }
 
-func (m Model) renderResults(width, height int) string {
-	style := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		Width(width).
-		MaxHeight(height + 2)
-
-	if len(m.results) == 0 {
-		return style.Render("No words found")
-	}
-
-	columns := m.width / (maxWordLength + scoreWidth + len(columInterspace))
-	numLines := len(m.results) / columns
-
-	startLine, endLine := m.paginator.GetSliceBounds(numLines)
-	startIdx := startLine * columns
-	endIdx := endLine*columns + columns
-	if endIdx > len(m.results) {
-		endIdx = len(m.results)
-	}
-	results := m.results[startIdx:endIdx]
-
-	styleWord := palette.Primary.Width(maxWordLength).Align(lipgloss.Left)
+func renderResult(r result, input *bee.Input) string {
+	styleWord := palette.Primary.Width(wordWidth).Align(lipgloss.Left)
 	styleScore := palette.Prompt.Width(scoreWidth).Align(lipgloss.Right)
-	xIdx := 0
-	sb := strings.Builder{}
-	for i, r := range results {
-		word := renderWord(r.word, m.input.Center())
-		score := strconv.Itoa(r.score)
-		sb.WriteString(styleWord.Render(word))
-		sb.WriteString(styleScore.Render(score))
-		xIdx++
-		if xIdx == columns {
-			if i != len(results)-1 {
-				sb.WriteString("\n")
-			}
-			xIdx = 0
-		} else {
-			sb.WriteString(columInterspace)
-		}
-	}
-	render := style.Render(sb.String())
-	if m.paginator.TotalPages > 1 {
-		render = lipgloss.JoinVertical(
-			lipgloss.Center,
-			render,
-			lipgloss.NewStyle().Align(lipgloss.Center).Render(m.paginator.View()),
-		)
-	}
-	return render
+	word := renderWord(r.word, input.Center())
+	score := strconv.Itoa(r.score)
+	return styleWord.Render(word) + styleScore.Render(score)
 }
 
 func renderWord(word string, highlightedChar rune) string {

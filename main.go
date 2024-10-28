@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
@@ -69,6 +70,7 @@ func setupLogging(config *config) (cleanupFunc, error) {
 	}
 	log.SetOutput(f)
 	log.SetFormatter(log.JSONFormatter)
+	log.SetTimeFormat(time.RFC3339Nano)
 	return func() { f.Close() }, nil
 }
 

@@ -72,7 +72,7 @@ func TestModel_renderTable(t *testing.T) {
 			m.height = tt.fields.height
 			m.items = pad_items(tt.fields.items, tt.fields.itemWidth)
 			m.itemWidth = tt.fields.itemWidth
-			m.updatePaginator()
+			m.calcPaginator()
 			got := m.renderTable()
 			goldenFile := testdata.Golden("render_table/" + tt.name)
 			testutils.SaveOrAssertEqual(t, got, goldenFile, *update)

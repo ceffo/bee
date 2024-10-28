@@ -57,7 +57,7 @@ func (m *Model) triggerError(err error) tea.Cmd {
 }
 
 // Update updates the model
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	cmds := common.NewMsgBatch()
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
