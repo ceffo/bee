@@ -8,4 +8,5 @@ type Source interface {
 	GetWords() Stream
 }
 
-type SourceMaker func() Source
+// Maker is a function that returns a Source
+type Maker func() Source

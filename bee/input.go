@@ -50,6 +50,10 @@ func (i Input) IsPangram(word string) bool {
 	return letterSet.Equal(wordSet)
 }
 
+func (i Input) IsExactPangram(word string) bool {
+	return i.IsPangram(word) && len(word) == NumLetters
+}
+
 func NewBeeInput(center rune, letters []rune) Input {
 	return Input{center: center, letters: append(letters, center)}
 }

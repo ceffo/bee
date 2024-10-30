@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/charmbracelet/bubbles/help"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
@@ -40,30 +41,23 @@ const (
 )
 
 type Model struct {
-	wordSourceMaker wordsource.SourceMaker
-	solver          *bee.Solver
-
-	prompt      prompt.Model
-	columnTable columntable.Model
-
-	state   state
-	input   *bee.Input
-	results []result
-
-	// window size
-	width  int
-	height int
+	wordSource wordsource.Maker
+	solver     *bee.Solver
+	prompt     prompt.Model
+	table      columntable.Model
+	help       help.Model
+	state      state
+	input      *bee.Input
+	results    []result
+	width      int
+	height     int
 }
 
-func NewModel(wordSourceMaker wordsource.SourceMaker) Model {
+func NewModel(wsm wordsource.Maker) Model {
 	log.Info("Creating new spellbee model")
 	return Model{
-		state:           statePrompt,
-		wordSourceMaker: wordSourceMaker,
-		solver:          bee.NewSolver(wordSourceMaker()),
-		prompt:          prompt.New(),
-		columnTable:     newColumnTable(),
-	}
+		wordSource: wsm,
+	}.reset()
 }
 
 func newColumnTable() columntable.Model {
@@ -82,9 +76,10 @@ func (m Model) reset() Model {
 	m.state = statePrompt
 	m.input = nil
 	m.results = nil
-	m.solver = bee.NewSolver(m.wordSourceMaker())
+	m.solver = bee.NewSolver(m.wordSource())
 	m.prompt = prompt.New()
-	m.columnTable = newColumnTable()
+	m.table = newColumnTable()
+	m.help = help.New()
 	return m
 }
 
@@ -159,7 +154,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.results = append(m.results, msg.result)
 		msgs.Add(listenToResults(msg.stream, msg.input))
 		renderedItems := renderResults(m.results, m.input)
-		m.columnTable.SetItems(renderedItems)
+		m.table.SetItems(renderedItems)
 	case resultsDoneMsg:
 		log.Info("Received results done message")
 		m.state = stateRetrieved
@@ -182,9 +177,9 @@ func (m *Model) updatePrompt(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) updateColumnTable(msg tea.Msg) tea.Cmd {
-	m.columnTable.SetSize(m.width, m.height-headerHeight)
-	newModel, cmd := m.columnTable.Update(msg)
-	m.columnTable = newModel
+	m.table.SetSize(m.width, m.height-headerHeight)
+	newModel, cmd := m.table.Update(msg)
+	m.table = newModel
 	return cmd
 }
 
@@ -216,9 +211,13 @@ func (m Model) View() string {
 	headerView := ""
 	switch m.state {
 	case stateRetrieving:
-		headerView += fmt.Sprintf("Retrieving words... (%d found)", len(m.results))
+		headerView += fmt.Sprintf("retrieving words... (%d found)", len(m.results))
 	case stateRetrieved:
-		headerView += fmt.Sprintf("Found %d words", len(m.results))
+		totalScore := slices.FoldLeft(m.results, func(acc int, r result) int {
+			return acc + r.score
+		}, 0)
+		headerView += fmt.Sprintf("words %d ▪︎ score ", len(m.results))
+		headerView += palette.Prompt.Render(strconv.Itoa(totalScore))
 	}
 	if headerView != "" {
 		headerView = lipgloss.NewStyle().Align(lipgloss.Left).MarginLeft(1).Render(headerView)
@@ -228,7 +227,7 @@ func (m Model) View() string {
 	contentView := ""
 	if m.state == stateRetrieving || m.state == stateRetrieved {
 		headerHeight := lipgloss.Height(headerView)
-		tableView := m.columnTable.View()
+		tableView := m.table.View()
 		contentHeight := lipgloss.Height(tableView)
 		if headerHeight+contentHeight > m.height {
 			contentView = "Window too small"
@@ -250,19 +249,24 @@ func (m Model) View() string {
 func renderResult(r result, input *bee.Input) string {
 	styleWord := palette.Primary.Width(wordWidth).Align(lipgloss.Left)
 	styleScore := palette.Prompt.Width(scoreWidth).Align(lipgloss.Right)
-	word := renderWord(r.word, input.Center())
+	word := renderWord(r.word, input)
 	score := strconv.Itoa(r.score)
 	return styleWord.Render(word) + styleScore.Render(score)
 }
 
-func renderWord(word string, highlightedChar rune) string {
-	highlightedChar = unicode.ToUpper(highlightedChar)
+func renderWord(word string, input *bee.Input) string {
+	letterStyle := prompt.NormalLetterStyle
+	centerStyle := prompt.CenterLetterStyle
+	if input.IsPangram(word) {
+		letterStyle = prompt.PangramLetterStyle
+	}
+	center := unicode.ToUpper(input.Center())
 	sb := strings.Builder{}
 	for _, l := range word {
-		if l == highlightedChar {
-			sb.WriteString(prompt.CenterLetterStyle.Bold(true).Render(string(l)))
+		if l == center {
+			sb.WriteString(centerStyle.Render(string(l)))
 		} else {
-			sb.WriteString(prompt.OtherLetterStyle.Render(string(l)))
+			sb.WriteString(letterStyle.Render(string(l)))
 		}
 	}
 	return sb.String()

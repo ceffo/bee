@@ -7,7 +7,6 @@ import (
 	"github.com/charmbracelet/bubbles/paginator"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/log"
 
 	"ceffo.com/bee/app/common"
 )
@@ -28,9 +27,7 @@ type Model struct {
 	itemWidth  int
 	numColumns int
 	separator  string
-
-	paginator paginator.Model
-	log       *log.Logger
+	paginator  paginator.Model
 }
 
 type Option func(*Model)
@@ -62,7 +59,6 @@ func New(opts ...Option) Model {
 	model := Model{
 		paginator: pg,
 		separator: defaultSeparator,
-		log:       log.Default().WithPrefix("[columntable] "),
 	}
 	for _, opt := range opts {
 		opt(&model)
@@ -129,9 +125,9 @@ func (m Model) View() string {
 	if m.paginator.TotalPages <= 1 {
 		return tableView
 	}
-	return lipgloss.JoinVertical(lipgloss.Center,
+	return lipgloss.JoinVertical(lipgloss.Right,
 		tableView,
-		m.paginator.View(),
+		lipgloss.NewStyle().Padding(0, 2).Render(m.paginator.View()),
 	)
 }
 

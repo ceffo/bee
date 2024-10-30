@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/timer"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -29,11 +32,14 @@ type DoneMsg struct {
 type Model struct {
 	letters []rune
 	valid   bool
+	done    bool
 
 	err         error
 	errMsgTimer timer.Model
 	timerID     int
-	done        bool
+
+	keyMap promptKeyMap
+	help   help.Model
 }
 
 // New creates a new prompt model
@@ -41,6 +47,21 @@ func New() Model {
 	return Model{
 		// create a stopped timer
 		errMsgTimer: timer.NewWithInterval(0, timerTick),
+		keyMap:      defaultKeyMap(),
+		help:        help.New(),
+	}
+}
+
+func defaultKeyMap() promptKeyMap {
+	return promptKeyMap{
+		remove: key.NewBinding(
+			key.WithKeys("backspace"),
+			key.WithHelp("⌫", "Remove last letter"),
+		),
+		enter: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("↩", "Start solving"),
+		),
 	}
 }
 
@@ -111,53 +132,83 @@ func (m Model) promptValidated() tea.Msg {
 
 func validateNewRune(r rune, letters []rune) error {
 	if r < 'a' || r > 'z' {
-		return fmt.Errorf("not a letter between a and z: %c", r)
+		return fmt.Errorf("not a letter between A and Z: %c", r)
 	}
 	// must not be in the list of existing letters
 	for _, l := range letters {
 		if l == r {
-			return fmt.Errorf("letter already entered: %c", r)
+			return fmt.Errorf("letter already entered: %c", unicode.ToUpper(r))
 		}
 	}
 	return nil
 }
 
+type promptKeyMap struct {
+	remove key.Binding
+	enter  key.Binding
+}
+
+func (m Model) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		m.ShortHelp(),
+	}
+}
+
+func (m Model) ShortHelp() []key.Binding {
+	bindings := []key.Binding{
+		m.keyMap.remove,
+	}
+	if m.valid {
+		bindings = append(bindings, m.keyMap.enter)
+	}
+	return bindings
+}
+
 var (
-	baseStyle         = lipgloss.NewStyle().Align(lipgloss.Left)
-	promptStyle       = baseStyle.Inherit(palette.Prompt)
-	doneStyle         = baseStyle.Inherit(palette.Positive)
-	errorStyle        = baseStyle.Inherit(palette.Error)
-	CenterLetterStyle = baseStyle.Inherit(palette.Secondary).Bold(true)
-	OtherLetterStyle  = baseStyle.Inherit(palette.Primary)
+	baseStyle          = lipgloss.NewStyle()
+	promptStyle        = baseStyle.Inherit(palette.Prompt)
+	helpStyle          = baseStyle.Inherit(palette.Help)
+	doneStyle          = baseStyle.Inherit(palette.Positive)
+	errorStyle         = baseStyle.Inherit(palette.Error)
+	CenterLetterStyle  = baseStyle.Inherit(palette.Secondary).Bold(true)
+	NormalLetterStyle  = baseStyle.Inherit(palette.Primary)
+	PangramLetterStyle = baseStyle.Inherit(palette.Tertiary)
 )
 
 // View returns the view for the model
 func (m Model) View() string {
 	strLetters := ""
-	for i, l := range m.letters {
+	for i := range 7 {
+		if i >= len(m.letters) {
+			if i > 0 {
+				strLetters += " "
+			}
+			strLetters += "_"
+			continue
+		}
+		l := m.letters[i]
 		strL := strings.ToUpper(string(l))
 		if i == 0 {
 			strLetters += CenterLetterStyle.Render(strL)
 		} else {
-			strLetters += " " + OtherLetterStyle.Render(strL)
+			strLetters += " " + NormalLetterStyle.Render(strL)
 		}
 	}
 	if m.done {
 		return strLetters
 	}
-	strError := ""
-	strHeader := promptStyle.Render("Enter 7 letters")
-	if m.valid {
-		strHeader = lipgloss.JoinHorizontal(lipgloss.Left, strHeader,
-			doneStyle.Margin(0, 2).Render("press Enter to start solving"))
-	}
+	strInput := strLetters
 	if m.err != nil {
-		strError = errorStyle.Render(m.err.Error())
+		strError := errorStyle.Margin(0, 2).Render(m.err.Error())
+		strInput = lipgloss.JoinHorizontal(lipgloss.Top, strInput, strError)
 	}
-	return lipgloss.JoinVertical(
-		lipgloss.Left,
-		strHeader,
-		strLetters,
-		strError,
+
+	strPrompt := promptStyle.Render("Enter 7 letters")
+
+	content := lipgloss.JoinHorizontal(lipgloss.Top,
+		strPrompt,
+		lipgloss.NewStyle().Margin(0, 2).Render(strInput),
 	)
+	content = lipgloss.JoinVertical(lipgloss.Left, content, m.help.View(m))
+	return lipgloss.NewStyle().Margin(1, 0).Render(content)
 }

@@ -74,7 +74,7 @@ func setupLogging(config *config) (cleanupFunc, error) {
 	return func() { f.Close() }, nil
 }
 
-func sourceMaker(wordlistFileName string) (cleanupFunc, wordsource.SourceMaker, error) {
+func sourceMaker(wordlistFileName string) (cleanupFunc, wordsource.Maker, error) {
 	log.Infof("Opening wordlist file %s", wordlistFileName)
 	wordFile, err := os.Open(wordlistFileName)
 	if err != nil {
