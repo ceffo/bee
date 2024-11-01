@@ -9,4 +9,5 @@ type Source interface {
 }
 
 // Maker is a function that returns a Source
+// TODO: make it return an errpr
 type Maker func() Source

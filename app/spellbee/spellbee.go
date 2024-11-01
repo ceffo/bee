@@ -118,43 +118,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	msgs := common.NewMsgBatch()
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width - 2
-		m.height = msg.Height
+		m.handleWindowSizeMsg(msg)
 	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyCtrlC:
-			return m, tea.Quit
-		case tea.KeyRunes:
-			if msg.String() == "q" {
-				return m, tea.Quit
-			}
-		case tea.KeyEsc:
-			switch m.state {
-			case statePrompt:
-				return m, tea.Quit
-			default:
-				return m.reset(), nil
-			}
-		case tea.KeyBackspace:
-			if m.state == stateRetrieved {
-				// reset the model
-				return m.reset(), nil
-			}
-		}
+		var cmd tea.Cmd
+		m, cmd = m.handleKeyMsg(msg)
+		msgs.Add(cmd)
 	case prompt.DoneMsg:
-		log.Info("Received prompt done message")
-		if msg.Valid {
-			input := msg.BeeInput
-			m.state = stateRetrieving
-			m.input = &input
-			stream := m.solver.SolveFor(input)
-			msgs.Add(listenToResults(stream, input))
-		}
+		msgs.Add(m.handlePromptDoneMsg(msg))
 	case newResultMsg:
-		m.results = append(m.results, msg.result)
-		msgs.Add(listenToResults(msg.stream, msg.input))
-		renderedItems := renderResults(m.results, m.input)
-		m.table.SetItems(renderedItems)
+		msgs.Add(m.handleNewResultMsg(msg))
 	case resultsDoneMsg:
 		log.Info("Received results done message")
 		m.state = stateRetrieved
@@ -168,6 +140,54 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, msgs.Cmd()
+}
+
+func (m *Model) handleWindowSizeMsg(msg tea.WindowSizeMsg) {
+	m.width = msg.Width - 2
+	m.height = msg.Height
+}
+
+func (m Model) handleKeyMsg(msg tea.KeyMsg) (Model, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyCtrlC:
+		return m, tea.Quit
+	case tea.KeyRunes:
+		if msg.String() == "q" {
+			return m, tea.Quit
+		}
+	case tea.KeyEsc:
+		switch m.state {
+		case statePrompt:
+			return m, tea.Quit
+		default:
+			return m.reset(), nil
+		}
+	case tea.KeyBackspace:
+		if m.state == stateRetrieved {
+			// reset the model
+			return m.reset(), nil
+		}
+	}
+	return m, nil
+}
+
+func (m *Model) handlePromptDoneMsg(msg prompt.DoneMsg) tea.Cmd {
+	log.Info("Received prompt done message")
+	if msg.Valid {
+		input := msg.BeeInput
+		m.state = stateRetrieving
+		m.input = &input
+		stream := m.solver.SolveFor(input)
+		return listenToResults(stream, input)
+	}
+	return nil
+}
+
+func (m *Model) handleNewResultMsg(msg newResultMsg) tea.Cmd {
+	m.results = append(m.results, msg.result)
+	renderedItems := renderResults(m.results, m.input)
+	m.table.SetItems(renderedItems)
+	return listenToResults(msg.stream, msg.input)
 }
 
 func (m *Model) updatePrompt(msg tea.Msg) tea.Cmd {

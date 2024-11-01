@@ -64,7 +64,8 @@ func runApp(config *config) error {
 }
 
 func setupLogging(config *config) (cleanupFunc, error) {
-	f, err := os.OpenFile(config.LogFileName, os.O_WRONLY|os.O_CREATE, 0o644)
+	const filePermissions = 0o644
+	f, err := os.OpenFile(config.LogFileName, os.O_WRONLY|os.O_CREATE, filePermissions)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +84,11 @@ func sourceMaker(wordlistFileName string) (cleanupFunc, wordsource.Maker, error)
 	cleanup := func() { wordFile.Close() }
 	maker := func() wordsource.Source {
 		log.Infof("Creating new word source from %s", wordlistFileName)
-		wordFile.Seek(0, 0)
+		_, err := wordFile.Seek(0, 0)
+		if err != nil {
+			log.Errorf("Error seeking to start of file: %v", err)
+			return nil
+		}
 		return reader.NewReaderSource(wordFile)
 	}
 	return cleanup, maker, nil

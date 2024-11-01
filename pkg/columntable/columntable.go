@@ -16,10 +16,6 @@ const (
 	defaultSeparator = " │ "
 )
 
-var (
-	tableStyle = lipgloss.NewStyle()
-)
-
 type Model struct {
 	width      int
 	height     int
@@ -75,7 +71,7 @@ func (m *Model) SetItems(items []string) {
 }
 
 // Init initializes the model
-func (m Model) Init() tea.Cmd {
+func (Model) Init() tea.Cmd {
 	return nil
 }
 
@@ -163,12 +159,12 @@ func (m Model) renderTable() string {
 }
 
 func iterateItems(items []string, padding string, numItems int) iterator {
-	return pad_iter(items, padding, numItems)
+	return padIter(items, padding, numItems)
 }
 
 type iterator func(yield func(int, string) bool)
 
-func pad_iter(items []string, padding string, numItems int) iterator {
+func padIter(items []string, padding string, numItems int) iterator {
 	return func(yield func(int, string) bool) {
 		i := 0
 		numFromItems := min(len(items), numItems)

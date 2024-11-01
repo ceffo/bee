@@ -4,8 +4,9 @@ import (
 	"bufio"
 	"io"
 
-	"ceffo.com/bee/wordsource"
 	"github.com/charmbracelet/log"
+
+	"ceffo.com/bee/wordsource"
 )
 
 // ReaderSource is a source that reads words from an io.Reader

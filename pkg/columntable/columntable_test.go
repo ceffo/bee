@@ -5,21 +5,22 @@ import (
 	"flag"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
+
 	"ceffo.com/bee/pkg/columntable/testdata"
 	"ceffo.com/bee/pkg/slices"
 	"ceffo.com/bee/pkg/testutils"
-	"github.com/charmbracelet/lipgloss"
 )
 
 var update = flag.Bool("update", false, "update .golden files")
 
 var (
-	test_items = []string{
+	testItems = []string{
 		"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty",
 	}
 )
 
-func pad_items(items []string, width int) []string {
+func padItems(items []string, width int) []string {
 	return slices.Map(items, func(s string) string {
 		return lipgloss.NewStyle().Width(width).Align(lipgloss.Left).Render(s)
 	})
@@ -27,11 +28,10 @@ func pad_items(items []string, width int) []string {
 
 func TestModel_renderTable(t *testing.T) {
 	type fields struct {
-		width      int
-		height     int
-		items      []string
-		itemWidth  int
-		transposed bool
+		width     int
+		height    int
+		items     []string
+		itemWidth int
 	}
 	tests := []struct {
 		name   string
@@ -60,7 +60,7 @@ func TestModel_renderTable(t *testing.T) {
 			fields: fields{
 				width:     48,
 				height:    9,
-				items:     test_items,
+				items:     testItems,
 				itemWidth: 10,
 			},
 		},
@@ -70,7 +70,7 @@ func TestModel_renderTable(t *testing.T) {
 			m := New()
 			m.width = tt.fields.width
 			m.height = tt.fields.height
-			m.items = pad_items(tt.fields.items, tt.fields.itemWidth)
+			m.items = padItems(tt.fields.items, tt.fields.itemWidth)
 			m.itemWidth = tt.fields.itemWidth
 			m.calcPaginator()
 			got := m.renderTable()

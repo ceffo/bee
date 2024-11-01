@@ -165,10 +165,9 @@ func (m Model) ShortHelp() []key.Binding {
 }
 
 var (
+	// helpStyle          = baseStyle.Inherit(palette.Help)
 	baseStyle          = lipgloss.NewStyle()
 	promptStyle        = baseStyle.Inherit(palette.Prompt)
-	helpStyle          = baseStyle.Inherit(palette.Help)
-	doneStyle          = baseStyle.Inherit(palette.Positive)
 	errorStyle         = baseStyle.Inherit(palette.Error)
 	CenterLetterStyle  = baseStyle.Inherit(palette.Secondary).Bold(true)
 	NormalLetterStyle  = baseStyle.Inherit(palette.Primary)
