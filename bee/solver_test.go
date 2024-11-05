@@ -21,7 +21,7 @@ func NewFakeTestWordSource(numWords, seed int) *TestWordSource {
 	}
 	words := make([]string, numWords)
 	for i := range numWords {
-		fakeWord := strings.ToLower(fakeit.Word())
+		fakeWord := strings.ToUpper(fakeit.Word())
 		words[i] = fakeWord
 	}
 	return &TestWordSource{words: words}
@@ -44,13 +44,13 @@ func (tws TestWordSource) GetWords() wordsource.Stream {
 
 func TestBeesolve_SolveFor(t *testing.T) {
 	words := []string{
-		"manual",
-		"mature",
-		"manually",
-		"maturely",
-		"null",
-		"amateur",
-		"runny",
+		"MANUAL",
+		"MATURE",
+		"MANUALLY",
+		"MATURELY",
+		"NULL",
+		"AMATEUR",
+		"RUNNY",
 	}
 	wordSource := NewFixedTestWordSource(words)
 	tr := NewSolver(wordSource)
@@ -60,11 +60,11 @@ func TestBeesolve_SolveFor(t *testing.T) {
 		want  []string
 	}{
 		{
-			input: NewBeeInput('n', []rune{'m', 'a', 'u', 'l'}),
+			input: NewBeeInput('N', []rune{'M', 'A', 'U', 'L'}),
 			want:  []string{"MANUAL", "NULL"},
 		},
 		{
-			input: NewBeeInput('n', []rune{'m', 'a', 'r', 'u', 'l', 'y', 't'}),
+			input: NewBeeInput('N', []rune{'M', 'A', 'R', 'U', 'L', 'Y', 'T'}),
 			want: []string{
 				"MANUAL",
 				"MANUALLY",

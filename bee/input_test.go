@@ -23,7 +23,7 @@ func TestInput_IsPangram(t *testing.T) {
 		{
 			name: "empty",
 			fields: fields{
-				letters: []rune{'a', 'b', 'c'},
+				letters: []rune{'A', 'B', 'C'},
 			},
 			args: args{
 				word: "",
@@ -33,30 +33,30 @@ func TestInput_IsPangram(t *testing.T) {
 		{
 			name: "not pangram",
 			fields: fields{
-				letters: []rune{'a', 'b', 'c'},
+				letters: []rune{'A', 'B', 'C'},
 			},
 			args: args{
-				word: "bcbcbc",
+				word: "BCBCBC",
 			},
 			want: false,
 		},
 		{
 			name: "pangram same letters",
 			fields: fields{
-				letters: []rune{'a', 'b', 'c'},
+				letters: []rune{'A', 'B', 'C'},
 			},
 			args: args{
-				word: "abc",
+				word: "ABC",
 			},
 			want: true,
 		},
 		{
 			name: "pangram more letters",
 			fields: fields{
-				letters: []rune{'a', 'b', 'c'},
+				letters: []rune{'A', 'B', 'C'},
 			},
 			args: args{
-				word: "abccba",
+				word: "ABCCBA",
 			},
 			want: true,
 		},
@@ -90,7 +90,7 @@ func TestInput_Score(t *testing.T) {
 		{
 			name: "empty",
 			fields: fields{
-				letters: []rune{'a', 'b', 'c'},
+				letters: []rune{'A', 'B', 'C'},
 			},
 			args: args{
 				word: "",
@@ -100,60 +100,60 @@ func TestInput_Score(t *testing.T) {
 		{
 			name: "less than 4",
 			fields: fields{
-				letters: []rune{'a', 'b', 'c'},
+				letters: []rune{'A', 'B', 'C'},
 			},
 			args: args{
-				word: "abc",
+				word: "ABC",
 			},
 			want: 0,
 		},
 		{
 			name: "4 letters",
 			fields: fields{
-				letters: []rune{'a', 'b', 'c', 'd', 'e', 'f', 'g'},
+				letters: []rune{'A', 'B', 'C', 'D', 'E', 'F', 'G'},
 			},
 			args: args{
-				word: "abca",
+				word: "ABCA",
 			},
 			want: 1,
 		},
 		{
 			name: "5 letters",
 			fields: fields{
-				letters: []rune{'a', 'b', 'c', 'd', 'e', 'f', 'g'},
+				letters: []rune{'A', 'B', 'C', 'D', 'E', 'F', 'G'},
 			},
 			args: args{
-				word: "abcab",
+				word: "ABCAB",
 			},
 			want: 5,
 		},
 		{
 			name: "7 letters - not pangram",
 			fields: fields{
-				letters: []rune{'a', 'b', 'c', 'd', 'e', 'f', 'g'},
+				letters: []rune{'A', 'B', 'C', 'D', 'E', 'F', 'G'},
 			},
 			args: args{
-				word: "abcdefa",
+				word: "ABCDEFA",
 			},
 			want: 7,
 		},
 		{
 			name: "7 letters - pangram",
 			fields: fields{
-				letters: []rune{'a', 'b', 'c', 'd', 'e', 'f', 'g'},
+				letters: []rune{'A', 'B', 'C', 'D', 'E', 'F', 'G'},
 			},
 			args: args{
-				word: "abcdefg",
+				word: "ABCDEFG",
 			},
 			want: 14,
 		},
 		{
 			name: "7 letters - longer pangram",
 			fields: fields{
-				letters: []rune{'a', 'b', 'c', 'd', 'e', 'f', 'g'},
+				letters: []rune{'A', 'B', 'C', 'D', 'E', 'F', 'G'},
 			},
 			args: args{
-				word: "abcdefgaa",
+				word: "ABCDEFGAA",
 			},
 			want: 16,
 		},
