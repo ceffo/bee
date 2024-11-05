@@ -45,7 +45,7 @@ func (i Input) Center() rune {
 
 func (i Input) IsPangram(word string) bool {
 	letterSet := mapset.NewSet(i.letters...)
-	wordRunes := []rune(strings.ToLower(word))
+	wordRunes := []rune(strings.ToUpper(word))
 	wordSet := mapset.NewSet(wordRunes...)
 	return letterSet.Equal(wordSet)
 }

@@ -4,6 +4,7 @@ package columntable
 import (
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/paginator"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -24,6 +25,31 @@ type Model struct {
 	numColumns int
 	separator  string
 	paginator  paginator.Model
+}
+
+func (m Model) keyMap() paginator.KeyMap {
+	km := m.paginator.KeyMap
+	km.PrevPage.SetHelp("←/h", "previous page")
+	km.NextPage.SetHelp("→/l", "next page")
+	multiPage := m.paginator.TotalPages > 1
+	km.PrevPage.SetEnabled(multiPage && !m.paginator.OnFirstPage())
+	km.NextPage.SetEnabled(multiPage && !m.paginator.OnLastPage())
+	return km
+}
+
+func (m Model) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		m.ShortHelp(),
+	}
+}
+
+func (m Model) ShortHelp() []key.Binding {
+	km := m.keyMap()
+	bindings := []key.Binding{
+		km.PrevPage,
+		km.NextPage,
+	}
+	return bindings
 }
 
 type Option func(*Model)
@@ -109,12 +135,6 @@ func (m *Model) calcPaginator() {
 	m.paginator.SetTotalPages(totalRows)
 }
 
-/*
-item1 │ item2 │ item3
-item4 │ item5 │ item6
-item7 │       │
-*/
-
 // View renders the model
 func (m Model) View() string {
 	tableView := lipgloss.NewStyle().Width(m.width).Border(lipgloss.RoundedBorder()).Render(m.renderTable())
@@ -154,7 +174,6 @@ func (m Model) renderTable() string {
 			sb.WriteString(defaultSeparator)
 		}
 	}
-
 	return sb.String()
 }
 

@@ -7,6 +7,7 @@ import (
 	"unicode"
 
 	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
@@ -16,6 +17,7 @@ import (
 	"ceffo.com/bee/app/prompt"
 	"ceffo.com/bee/bee"
 	"ceffo.com/bee/pkg/columntable"
+	"ceffo.com/bee/pkg/keymap"
 	"ceffo.com/bee/pkg/slices"
 	"ceffo.com/bee/wordsource"
 )
@@ -25,6 +27,7 @@ const (
 	scoreWidth   = 3
 	maxItemWidth = wordWidth + scoreWidth
 	headerHeight = 7
+	helpHeight   = 1
 )
 
 type result struct {
@@ -70,6 +73,26 @@ func newColumnTable() columntable.Model {
 	)
 }
 
+func allKeyMap() keyMap {
+	return keyMap{
+		quit: key.NewBinding(
+			key.WithKeys("q", "ctrl+c"),
+			key.WithHelp("q/⌃+c", "quit"),
+		),
+		reset: key.NewBinding(
+			key.WithKeys("esc"),
+			key.WithHelp("⎋", "reset"),
+		),
+	}
+}
+
+func (m Model) keyMap() keyMap {
+	km := allKeyMap()
+	km.quit.SetEnabled(m.state != statePrompt)
+	km.reset.SetEnabled(m.state != statePrompt)
+	return km
+}
+
 func (m Model) reset() Model {
 	log.Info("Resetting spellbee model")
 
@@ -81,6 +104,26 @@ func (m Model) reset() Model {
 	m.table = newColumnTable()
 	m.help = help.New()
 	return m
+}
+
+type keyMap struct {
+	quit  key.Binding
+	reset key.Binding
+}
+
+func (m Model) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		m.ShortHelp(),
+	}
+}
+
+func (m Model) ShortHelp() []key.Binding {
+	km := m.keyMap()
+	bindings := []key.Binding{
+		km.quit,
+		km.reset,
+	}
+	return bindings
 }
 
 type newResultMsg struct {
@@ -148,25 +191,12 @@ func (m *Model) handleWindowSizeMsg(msg tea.WindowSizeMsg) {
 }
 
 func (m Model) handleKeyMsg(msg tea.KeyMsg) (Model, tea.Cmd) {
-	switch msg.Type {
-	case tea.KeyCtrlC:
+	km := m.keyMap()
+	if key.Matches(msg, km.quit) {
 		return m, tea.Quit
-	case tea.KeyRunes:
-		if msg.String() == "q" {
-			return m, tea.Quit
-		}
-	case tea.KeyEsc:
-		switch m.state {
-		case statePrompt:
-			return m, tea.Quit
-		default:
-			return m.reset(), nil
-		}
-	case tea.KeyBackspace:
-		if m.state == stateRetrieved {
-			// reset the model
-			return m.reset(), nil
-		}
+	}
+	if key.Matches(msg, km.reset) {
+		return m.reset(), nil
 	}
 	return m, nil
 }
@@ -197,7 +227,7 @@ func (m *Model) updatePrompt(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) updateColumnTable(msg tea.Msg) tea.Cmd {
-	m.table.SetSize(m.width, m.height-headerHeight)
+	m.table.SetSize(m.width, m.height-headerHeight-helpHeight)
 	newModel, cmd := m.table.Update(msg)
 	m.table = newModel
 	return cmd
@@ -223,7 +253,7 @@ func (m Model) View() string {
 
 	promptStyle := lipgloss.NewStyle().Align(lipgloss.Center).Width(m.width)
 	if m.state == statePrompt {
-		promptStyle = lipgloss.NewStyle().Align(lipgloss.Left).Margin(1, 1)
+		promptStyle = lipgloss.NewStyle().Align(lipgloss.Left).Margin(1, 0, 0, 1)
 	}
 	promptView := promptStyle.Render(m.prompt.View())
 	elements = append(elements, promptView)
@@ -258,6 +288,16 @@ func (m Model) View() string {
 	if contentView != "" {
 		elements = append(elements, contentView)
 	}
+
+	bag := keymap.NewBag(m)
+	switch m.state {
+	case statePrompt:
+		bag = bag.Add(m.prompt)
+	case stateRetrieving, stateRetrieved:
+		bag = bag.Add(m.table)
+	}
+	helpView := lipgloss.NewStyle().Margin(0, 1).Render(m.help.View(bag))
+	elements = append(elements, helpView)
 
 	view := lipgloss.JoinVertical(
 		lipgloss.Left,

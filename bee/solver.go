@@ -21,8 +21,9 @@ func (t *Solver) SolveFor(input Input) wordsource.Stream {
 	go func() {
 		defer close(result)
 		for word := range t.wordSource.GetWords() {
+			word = strings.ToUpper(word)
 			if satisfies(word, input) {
-				result <- strings.ToUpper(word)
+				result <- word
 			}
 		}
 	}()
@@ -35,7 +36,7 @@ func satisfies(word string, input Input) bool {
 		return false
 	}
 
-	wordRunes := []rune(strings.ToLower(word))
+	wordRunes := []rune(word)
 	wordSet := mapset.NewSet(wordRunes...)
 	letters := mapset.NewSet(input.letters...)
 	return wordSet.Contains(input.center) && wordSet.IsSubset(letters)
