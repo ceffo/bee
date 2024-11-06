@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
@@ -49,6 +50,7 @@ type Model struct {
 	prompt     prompt.Model
 	table      columntable.Model
 	help       help.Model
+	spinner    spinner.Model
 	state      state
 	input      *bee.Input
 	results    []result
@@ -103,6 +105,12 @@ func (m Model) reset() Model {
 	m.prompt = prompt.New()
 	m.table = newColumnTable()
 	m.help = help.New()
+	m.spinner = spinner.New(
+		spinner.WithSpinner(spinner.Dot),
+		spinner.WithStyle(
+			lipgloss.NewStyle().Foreground(lipgloss.Color("205")),
+		),
+	)
 	return m
 }
 
@@ -154,16 +162,16 @@ func listenToResults(stream wordsource.Stream, input bee.Input) tea.Cmd {
 
 func (m Model) Init() tea.Cmd {
 	log.Info("Initializing spellbee model")
-	return tea.Batch(m.prompt.Init())
+	return tea.Batch(m.prompt.Init(), m.spinner.Tick)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
 	msgs := common.NewMsgBatch()
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.handleWindowSizeMsg(msg)
 	case tea.KeyMsg:
-		var cmd tea.Cmd
 		m, cmd = m.handleKeyMsg(msg)
 		msgs.Add(cmd)
 	case prompt.DoneMsg:
@@ -178,7 +186,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.state {
 	case statePrompt:
 		msgs.Add(m.updatePrompt(msg))
-	case stateRetrieving, stateRetrieved:
+	case stateRetrieving:
+		m.spinner, cmd = m.spinner.Update(msg)
+		msgs.Add(cmd)
+	case stateRetrieved:
 		msgs.Add(m.updateColumnTable(msg))
 	}
 
@@ -208,7 +219,7 @@ func (m *Model) handlePromptDoneMsg(msg prompt.DoneMsg) tea.Cmd {
 		m.state = stateRetrieving
 		m.input = &input
 		stream := m.solver.SolveFor(input)
-		return listenToResults(stream, input)
+		return tea.Batch(listenToResults(stream, input), m.spinner.Tick)
 	}
 	return nil
 }
@@ -261,12 +272,13 @@ func (m Model) View() string {
 	headerView := ""
 	switch m.state {
 	case stateRetrieving:
-		headerView += fmt.Sprintf("retrieving words... (%d found)", len(m.results))
+		spinnerView := palette.Prompt.Render(m.spinner.View())
+		headerView += fmt.Sprintf("words %03d %s", len(m.results), spinnerView)
 	case stateRetrieved:
-		totalScore := slices.FoldLeft(m.results, func(acc int, r result) int {
+		totalScore := slices.FoldLeft(m.results, 0, func(acc int, r result) int {
 			return acc + r.score
-		}, 0)
-		headerView += fmt.Sprintf("words %d ▪︎ score ", len(m.results))
+		})
+		headerView += fmt.Sprintf("words %03d ▪︎ score ", len(m.results))
 		headerView += palette.Prompt.Render(strconv.Itoa(totalScore))
 	}
 	if headerView != "" {
@@ -275,7 +287,7 @@ func (m Model) View() string {
 	}
 
 	contentView := ""
-	if m.state == stateRetrieving || m.state == stateRetrieved {
+	if m.state == stateRetrieved {
 		headerHeight := lipgloss.Height(headerView)
 		tableView := m.table.View()
 		contentHeight := lipgloss.Height(tableView)
@@ -293,7 +305,7 @@ func (m Model) View() string {
 	switch m.state {
 	case statePrompt:
 		bag = bag.Add(m.prompt)
-	case stateRetrieving, stateRetrieved:
+	case stateRetrieved:
 		bag = bag.Add(m.table)
 	}
 	helpView := lipgloss.NewStyle().Margin(0, 1).Render(m.help.View(bag))
