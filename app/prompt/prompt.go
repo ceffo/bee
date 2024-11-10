@@ -172,7 +172,7 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (Model, tea.Cmd) {
 func (m Model) promptValidated() tea.Msg {
 	var input bee.Input
 	if m.valid {
-		input = bee.NewBeeInput(m.letters[0], m.letters[1:])
+		input = bee.NewInput(m.letters[0], m.letters[1:])
 	}
 	return DoneMsg{Valid: m.valid, BeeInput: input}
 }
@@ -202,7 +202,7 @@ var (
 // View returns the view for the model
 func (m Model) View() string {
 	strLetters := ""
-	for i := range 7 {
+	for i := range bee.NumLetters {
 		if i >= len(m.letters) {
 			if i > 0 {
 				strLetters += " "
@@ -227,7 +227,7 @@ func (m Model) View() string {
 		strInput = lipgloss.JoinHorizontal(lipgloss.Top, strInput, strError)
 	}
 
-	strPrompt := promptStyle.Render("Enter 7 letters")
+	strPrompt := promptStyle.Render(fmt.Sprintf("Enter %d letters", bee.NumLetters))
 
 	content := lipgloss.JoinHorizontal(lipgloss.Top,
 		strPrompt,

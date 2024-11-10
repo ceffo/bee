@@ -54,7 +54,7 @@ func (i Input) IsExactPangram(word string) bool {
 	return i.IsPangram(word) && len(word) == NumLetters
 }
 
-func NewBeeInput(center rune, letters []rune) Input {
+func NewInput(center rune, letters []rune) Input {
 	return Input{center: center, letters: append(letters, center)}
 }
 

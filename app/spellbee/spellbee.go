@@ -45,23 +45,22 @@ const (
 )
 
 type Model struct {
-	wordSource wordsource.Maker
-	solver     *bee.Solver
-	prompt     prompt.Model
-	table      columntable.Model
-	help       help.Model
-	spinner    spinner.Model
-	state      state
-	input      *bee.Input
-	results    []result
-	width      int
-	height     int
+	solver  *bee.Solver
+	prompt  prompt.Model
+	table   columntable.Model
+	help    help.Model
+	spinner spinner.Model
+	state   state
+	input   *bee.Input
+	results []result
+	width   int
+	height  int
 }
 
-func NewModel(wsm wordsource.Maker) Model {
+func NewModel(solver *bee.Solver) Model {
 	log.Info("Creating new spellbee model")
 	return Model{
-		wordSource: wsm,
+		solver: solver,
 	}.reset()
 }
 
@@ -101,7 +100,6 @@ func (m Model) reset() Model {
 	m.state = statePrompt
 	m.input = nil
 	m.results = nil
-	m.solver = bee.NewSolver(m.wordSource())
 	m.prompt = prompt.New()
 	m.table = newColumnTable()
 	m.help = help.New()
@@ -218,7 +216,7 @@ func (m *Model) handlePromptDoneMsg(msg prompt.DoneMsg) tea.Cmd {
 		input := msg.BeeInput
 		m.state = stateRetrieving
 		m.input = &input
-		stream := m.solver.SolveFor(input)
+		stream := m.solver.SolveFor(&input)
 		return tea.Batch(listenToResults(stream, input), m.spinner.Tick)
 	}
 	return nil

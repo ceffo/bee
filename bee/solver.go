@@ -9,18 +9,18 @@ import (
 )
 
 type Solver struct {
-	wordSource wordsource.Source
+	source wordsource.Maker
 }
 
-func NewSolver(wordSource wordsource.Source) *Solver {
-	return &Solver{wordSource: wordSource}
+func NewSolver(maker wordsource.Maker) *Solver {
+	return &Solver{source: maker}
 }
 
-func (t *Solver) SolveFor(input Input) wordsource.Stream {
+func (t *Solver) SolveFor(input *Input) wordsource.Stream {
 	result := make(chan string)
 	go func() {
 		defer close(result)
-		for word := range t.wordSource.GetWords() {
+		for word := range t.source().GetWords() {
 			word = strings.ToUpper(word)
 			if satisfies(word, input) {
 				result <- word
@@ -31,7 +31,7 @@ func (t *Solver) SolveFor(input Input) wordsource.Stream {
 }
 
 // satisfies returns true if the word satisfies the input
-func satisfies(word string, input Input) bool {
+func satisfies(word string, input *Input) bool {
 	if len(word) < minWordLength {
 		return false
 	}

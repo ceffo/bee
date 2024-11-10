@@ -53,18 +53,20 @@ func TestBeesolve_SolveFor(t *testing.T) {
 		"RUNNY",
 	}
 	wordSource := NewFixedTestWordSource(words)
-	tr := NewSolver(wordSource)
+	tr := NewSolver(func() wordsource.Source {
+		return wordSource
+	})
 
 	tests := []struct {
 		input Input
 		want  []string
 	}{
 		{
-			input: NewBeeInput('N', []rune{'M', 'A', 'U', 'L'}),
+			input: NewInput('N', []rune{'M', 'A', 'U', 'L'}),
 			want:  []string{"MANUAL", "NULL"},
 		},
 		{
-			input: NewBeeInput('N', []rune{'M', 'A', 'R', 'U', 'L', 'Y', 'T'}),
+			input: NewInput('N', []rune{'M', 'A', 'R', 'U', 'L', 'Y', 'T'}),
 			want: []string{
 				"MANUAL",
 				"MANUALLY",
@@ -76,7 +78,7 @@ func TestBeesolve_SolveFor(t *testing.T) {
 	for _, tt := range tests {
 		name := tt.input.String()
 		t.Run(name, func(t *testing.T) {
-			result := tr.SolveFor(tt.input)
+			result := tr.SolveFor(&tt.input)
 			words := make([]string, 0, len(tt.want))
 			for word := range result {
 				words = append(words, word)
