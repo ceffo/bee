@@ -27,13 +27,11 @@ func (rs ReaderSource) GetWords() wordsource.Stream {
 	log.Info("Reading words from reader")
 	result := make(chan string)
 	go func() {
-		log.Info("Start scanning words")
 		defer close(result)
 		scanner := bufio.NewScanner(rs.reader)
 		for scanner.Scan() {
 			result <- scanner.Text()
 		}
-		log.Info("Finished scanning words")
 	}()
 	return result
 }

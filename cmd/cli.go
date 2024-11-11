@@ -11,7 +11,7 @@ import (
 
 const (
 	FlagWordlist = "wordlist"
-	FlagLogfile  = "logfile"
+	FlagLogfile  = "log"
 )
 
 type BeeCLI struct {
@@ -19,9 +19,11 @@ type BeeCLI struct {
 }
 
 func NewBeeCLI() *BeeCLI {
-	return &BeeCLI{
-		rootCmd: newRootCmd(),
-	}
+	r := newRootCmd()
+	r.AddCommand(
+		newSolveCmd(),
+	)
+	return &BeeCLI{r}
 }
 
 func newRootCmd() *cobra.Command {
@@ -33,8 +35,8 @@ func newRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 	}
 
-	cmd.Flags().StringP(FlagWordlist, "w", "data/words.txt", "path to the word list file")
-	cmd.Flags().StringP(FlagLogfile, "l", "bee.log", "path to the log file")
+	cmd.PersistentFlags().StringP(FlagWordlist, "w", "data/words.txt", "path to the word list file")
+	cmd.PersistentFlags().String(FlagLogfile, "bee.log", "path to the log file")
 
 	return cmd
 }

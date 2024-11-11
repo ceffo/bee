@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/timer"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/log"
 
 	"ceffo.com/bee/app/common"
 	"ceffo.com/bee/app/palette"
@@ -24,7 +25,7 @@ const (
 // DoneMsg is the message sent when the prompt is done
 type DoneMsg struct {
 	Valid    bool
-	BeeInput bee.Input
+	BeeInput *bee.Input
 }
 
 // Model is the model for the prompt
@@ -170,9 +171,14 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (Model, tea.Cmd) {
 }
 
 func (m Model) promptValidated() tea.Msg {
-	var input bee.Input
+	var input *bee.Input
 	if m.valid {
-		input = bee.NewInput(m.letters[0], m.letters[1:])
+		var err error
+		input, err = bee.NewInput(m.letters[0], m.letters[1:])
+		if err != nil {
+			log.Errorf("error creating input: %v", err)
+			return DoneMsg{Valid: false}
+		}
 	}
 	return DoneMsg{Valid: m.valid, BeeInput: input}
 }

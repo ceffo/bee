@@ -7,6 +7,7 @@ import (
 	fakeit "github.com/brianvoe/gofakeit/v7"
 	"github.com/stretchr/testify/assert"
 
+	"ceffo.com/bee/pkg/must"
 	"ceffo.com/bee/wordsource"
 )
 
@@ -43,7 +44,7 @@ func (tws TestWordSource) GetWords() wordsource.Stream {
 }
 
 func TestBeesolve_SolveFor(t *testing.T) {
-	words := []string{
+	wordList := []string{
 		"MANUAL",
 		"MATURE",
 		"MANUALLY",
@@ -52,33 +53,35 @@ func TestBeesolve_SolveFor(t *testing.T) {
 		"AMATEUR",
 		"RUNNY",
 	}
-	wordSource := NewFixedTestWordSource(words)
+	wordSource := NewFixedTestWordSource(wordList)
 	tr := NewSolver(func() wordsource.Source {
 		return wordSource
 	})
 
 	tests := []struct {
-		input Input
+		input *Input
 		want  []string
 	}{
 		{
-			input: NewInput('N', []rune{'M', 'A', 'U', 'L'}),
-			want:  []string{"MANUAL", "NULL"},
-		},
-		{
-			input: NewInput('N', []rune{'M', 'A', 'R', 'U', 'L', 'Y', 'T'}),
+			input: must.NoError(NewInput('N', []rune{'M', 'A', 'U', 'L', 'Y', 'T'})),
 			want: []string{
 				"MANUAL",
 				"MANUALLY",
 				"NULL",
-				"RUNNY",
+			},
+		},
+		{
+			input: must.NoError(NewInput('M', []rune{'N', 'A', 'U', 'L', 'Y', 'T'})),
+			want: []string{
+				"MANUAL",
+				"MANUALLY",
 			},
 		},
 	}
 	for _, tt := range tests {
 		name := tt.input.String()
 		t.Run(name, func(t *testing.T) {
-			result := tr.SolveFor(&tt.input)
+			result := tr.SolveFor(tt.input)
 			words := make([]string, 0, len(tt.want))
 			for word := range result {
 				words = append(words, word)

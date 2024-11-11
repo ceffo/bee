@@ -134,13 +134,13 @@ func (m Model) ShortHelp() []key.Binding {
 
 type newResultMsg struct {
 	stream wordsource.Stream
-	input  bee.Input
+	input  *bee.Input
 	result result
 }
 
 type resultsDoneMsg struct{}
 
-func listenToResults(stream wordsource.Stream, input bee.Input) tea.Cmd {
+func listenToResults(stream wordsource.Stream, input *bee.Input) tea.Cmd {
 	log.Debug("Listening to results")
 	return func() tea.Msg {
 		word, ok := <-stream
@@ -215,8 +215,8 @@ func (m *Model) handlePromptDoneMsg(msg prompt.DoneMsg) tea.Cmd {
 	if msg.Valid {
 		input := msg.BeeInput
 		m.state = stateRetrieving
-		m.input = &input
-		stream := m.solver.SolveFor(&input)
+		m.input = input
+		stream := m.solver.SolveFor(input)
 		return tea.Batch(listenToResults(stream, input), m.spinner.Tick)
 	}
 	return nil
