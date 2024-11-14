@@ -75,7 +75,7 @@ func (m Model) keyMap() keyMap {
 	km := keyMap{
 		quit: key.NewBinding(
 			key.WithKeys("ctrl+c"),
-			key.WithHelp("⌃+c", "quit"),
+			key.WithHelp("^c", "quit"),
 		),
 		remove: key.NewBinding(
 			key.WithKeys("backspace"),
@@ -87,7 +87,7 @@ func (m Model) keyMap() keyMap {
 		),
 		reset: key.NewBinding(
 			key.WithKeys("esc"),
-			key.WithHelp("⎋", "reset"),
+			key.WithHelp("␛", "reset"),
 		),
 	}
 	hasLetters := len(m.letters) > 0

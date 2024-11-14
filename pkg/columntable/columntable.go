@@ -29,8 +29,8 @@ type Model struct {
 
 func (m Model) keyMap() paginator.KeyMap {
 	km := m.paginator.KeyMap
-	km.PrevPage.SetHelp("←/h", "previous page")
-	km.NextPage.SetHelp("→/l", "next page")
+	km.PrevPage.SetHelp("←/h", "previous")
+	km.NextPage.SetHelp("→/l", "next")
 	multiPage := m.paginator.TotalPages > 1
 	km.PrevPage.SetEnabled(multiPage && !m.paginator.OnFirstPage())
 	km.NextPage.SetEnabled(multiPage && !m.paginator.OnLastPage())
@@ -163,8 +163,8 @@ func (m Model) renderTable() string {
 	nbCells := m.numColumns * m.paginator.PerPage
 
 	sb := strings.Builder{}
-	blank := strings.Repeat(" ", m.itemWidth)
-	for i, cell := range iterateItems(items, blank, nbCells) {
+	blankCell := strings.Repeat(" ", m.itemWidth)
+	for i, cell := range padIterIdx(items, blankCell, nbCells) {
 		if i > 0 && i%m.numColumns == 0 {
 			sb.WriteString("\n")
 		}
@@ -177,14 +177,12 @@ func (m Model) renderTable() string {
 	return sb.String()
 }
 
-func iterateItems(items []string, padding string, numItems int) iterator {
-	return padIter(items, padding, numItems)
-}
+type iteratorIdx[T any] func(yield func(int, T) bool)
 
-type iterator func(yield func(int, string) bool)
-
-func padIter(items []string, padding string, numItems int) iterator {
-	return func(yield func(int, string) bool) {
+// padIterIdx returns an iterator that yields indexed items from a slice, and then continues
+// padding with a given value if the slice is shorter than the number of items requested.
+func padIterIdx[T any](items []T, padding T, numItems int) iteratorIdx[T] {
+	return func(yield func(int, T) bool) {
 		i := 0
 		numFromItems := min(len(items), numItems)
 		for i = range numFromItems {

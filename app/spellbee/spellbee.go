@@ -1,6 +1,7 @@
 package spellbee
 
 import (
+	"cmp"
 	"fmt"
 	"strconv"
 	"strings"
@@ -19,7 +20,7 @@ import (
 	"ceffo.com/bee/bee"
 	"ceffo.com/bee/pkg/columntable"
 	"ceffo.com/bee/pkg/keymap"
-	"ceffo.com/bee/pkg/slices"
+	sliceUtils "ceffo.com/bee/pkg/slices"
 	"ceffo.com/bee/wordsource"
 )
 
@@ -44,6 +45,31 @@ const (
 	stateRetrieved
 )
 
+type sortorder int
+
+const (
+	sortAlphaAsc sortorder = iota
+	sortAlphaDesc
+	sortScoreDesc
+	sortScoreAsc
+	sortNum
+)
+
+func (s sortorder) String() string {
+	switch s {
+	case sortAlphaAsc:
+		return "alpha ↑"
+	case sortAlphaDesc:
+		return "alpha ↓"
+	case sortScoreDesc:
+		return "score ↓"
+	case sortScoreAsc:
+		return "score ↑"
+	default:
+		return "unknown"
+	}
+}
+
 type Model struct {
 	solver  *bee.Solver
 	prompt  prompt.Model
@@ -53,15 +79,16 @@ type Model struct {
 	state   state
 	input   *bee.Input
 	results []result
+	sorting sortorder
 	width   int
 	height  int
 }
 
 func NewModel(solver *bee.Solver) Model {
 	log.Info("Creating new spellbee model")
-	return Model{
+	return *(&Model{
 		solver: solver,
-	}.reset()
+	}).reset()
 }
 
 func newColumnTable() columntable.Model {
@@ -78,11 +105,15 @@ func allKeyMap() keyMap {
 	return keyMap{
 		quit: key.NewBinding(
 			key.WithKeys("q", "ctrl+c"),
-			key.WithHelp("q/⌃+c", "quit"),
+			key.WithHelp("q/^c", "quit"),
 		),
 		reset: key.NewBinding(
 			key.WithKeys("esc"),
-			key.WithHelp("⎋", "reset"),
+			key.WithHelp("␛", "reset"),
+		),
+		sort: key.NewBinding(
+			key.WithKeys("s"),
+			key.WithHelp("s", "sorting"),
 		),
 	}
 }
@@ -91,10 +122,11 @@ func (m Model) keyMap() keyMap {
 	km := allKeyMap()
 	km.quit.SetEnabled(m.state != statePrompt)
 	km.reset.SetEnabled(m.state != statePrompt)
+	km.sort.SetEnabled(m.state == stateRetrieved)
 	return km
 }
 
-func (m Model) reset() Model {
+func (m *Model) reset() *Model {
 	log.Info("Resetting spellbee model")
 
 	m.state = statePrompt
@@ -106,15 +138,17 @@ func (m Model) reset() Model {
 	m.spinner = spinner.New(
 		spinner.WithSpinner(spinner.Dot),
 		spinner.WithStyle(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("205")),
+			palette.Prompt,
 		),
 	)
+	m.sorting = sortAlphaAsc
 	return m
 }
 
 type keyMap struct {
 	quit  key.Binding
 	reset key.Binding
+	sort  key.Binding
 }
 
 func (m Model) FullHelp() [][]key.Binding {
@@ -128,6 +162,7 @@ func (m Model) ShortHelp() []key.Binding {
 	bindings := []key.Binding{
 		km.quit,
 		km.reset,
+		km.sort,
 	}
 	return bindings
 }
@@ -170,15 +205,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.handleWindowSizeMsg(msg)
 	case tea.KeyMsg:
-		m, cmd = m.handleKeyMsg(msg)
-		msgs.Add(cmd)
+		msgs.Add(m.handleKeyMsg(msg))
 	case prompt.DoneMsg:
+		log.Info("Received prompt done message")
 		msgs.Add(m.handlePromptDoneMsg(msg))
 	case newResultMsg:
 		msgs.Add(m.handleNewResultMsg(msg))
 	case resultsDoneMsg:
 		log.Info("Received results done message")
-		m.state = stateRetrieved
+		m.handleResultsDoneMsg()
 	}
 
 	switch m.state {
@@ -194,20 +229,49 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, msgs.Cmd()
 }
 
+func (m *Model) sortResults() {
+	switch m.sorting {
+	case sortAlphaAsc:
+		sliceUtils.SortBy(m.results, func(a, b result) int {
+			return strings.Compare(a.word, b.word)
+		})
+	case sortAlphaDesc:
+		sliceUtils.SortBy(m.results, func(a, b result) int {
+			return strings.Compare(b.word, a.word)
+		})
+	case sortScoreDesc:
+		sliceUtils.SortBy(m.results, func(a, b result) int {
+			return cmp.Compare(b.score, a.score)
+		}, func(a, b result) int {
+			return strings.Compare(a.word, b.word)
+		})
+	case sortScoreAsc:
+		sliceUtils.SortBy(m.results, func(a, b result) int {
+			return cmp.Compare(a.score, b.score)
+		}, func(a, b result) int {
+			return strings.Compare(a.word, b.word)
+		})
+	}
+	renderedItems := renderResults(m.results, m.input)
+	m.table.SetItems(renderedItems)
+}
+
 func (m *Model) handleWindowSizeMsg(msg tea.WindowSizeMsg) {
 	m.width = msg.Width - 2
 	m.height = msg.Height
 }
 
-func (m Model) handleKeyMsg(msg tea.KeyMsg) (Model, tea.Cmd) {
+func (m *Model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	km := m.keyMap()
 	if key.Matches(msg, km.quit) {
-		return m, tea.Quit
+		return tea.Quit
+	} else if key.Matches(msg, km.reset) {
+		m.reset()
+	} else if key.Matches(msg, km.sort) {
+		m.sorting = (m.sorting + 1) % sortNum
+		m.sortResults()
 	}
-	if key.Matches(msg, km.reset) {
-		return m.reset(), nil
-	}
-	return m, nil
+	return nil
 }
 
 func (m *Model) handlePromptDoneMsg(msg prompt.DoneMsg) tea.Cmd {
@@ -224,9 +288,16 @@ func (m *Model) handlePromptDoneMsg(msg prompt.DoneMsg) tea.Cmd {
 
 func (m *Model) handleNewResultMsg(msg newResultMsg) tea.Cmd {
 	m.results = append(m.results, msg.result)
-	renderedItems := renderResults(m.results, m.input)
-	m.table.SetItems(renderedItems)
 	return listenToResults(msg.stream, msg.input)
+}
+
+func (m *Model) handleResultsDoneMsg() {
+	m.state = stateRetrieved
+	largestWordWidth := sliceUtils.FoldLeft(m.results, 0, func(acc int, r result) int {
+		return max(acc, len(r.word))
+	})
+	m.table.SetItemWidth(max(largestWordWidth+scoreWidth+1, maxItemWidth))
+	m.sortResults()
 }
 
 func (m *Model) updatePrompt(msg tea.Msg) tea.Cmd {
@@ -243,7 +314,7 @@ func (m *Model) updateColumnTable(msg tea.Msg) tea.Cmd {
 }
 
 func renderResults(results []result, input *bee.Input) []string {
-	return slices.Map(results, func(r result) string {
+	return sliceUtils.Map(results, func(r result) string {
 		return renderResult(r, input)
 	})
 }
@@ -267,23 +338,30 @@ func (m Model) View() string {
 	promptView := promptStyle.Render(m.prompt.View())
 	elements = append(elements, promptView)
 
+	// Header view
 	headerView := ""
+	sb := strings.Builder{}
 	switch m.state {
 	case stateRetrieving:
 		spinnerView := palette.Prompt.Render(m.spinner.View())
-		headerView += fmt.Sprintf("words %03d %s", len(m.results), spinnerView)
+		sb.WriteString(fmt.Sprintf("words %3d %s", len(m.results), spinnerView))
 	case stateRetrieved:
-		totalScore := slices.FoldLeft(m.results, 0, func(acc int, r result) int {
+		totalScore := sliceUtils.FoldLeft(m.results, 0, func(acc int, r result) int {
 			return acc + r.score
 		})
-		headerView += fmt.Sprintf("words %03d ▪︎ score ", len(m.results))
-		headerView += palette.Prompt.Render(strconv.Itoa(totalScore))
+		sb.WriteString("words ")
+		sb.WriteString(palette.Details.Render(strconv.Itoa(len(m.results))))
+		sb.WriteString(" ▪︎ score ")
+		sb.WriteString(palette.Details.Render(strconv.Itoa(totalScore)))
+		sb.WriteString(" ▪︎ sort ")
+		sb.WriteString(palette.Details.Render(m.sorting.String()))
 	}
-	if headerView != "" {
-		headerView = lipgloss.NewStyle().Align(lipgloss.Left).MarginLeft(1).Render(headerView)
+	if sb.Len() > 0 {
+		headerView = lipgloss.NewStyle().Align(lipgloss.Left).MarginLeft(1).Render(sb.String())
 		elements = append(elements, headerView)
 	}
 
+	// Content view
 	contentView := ""
 	if m.state == stateRetrieved {
 		headerHeight := lipgloss.Height(headerView)
@@ -306,6 +384,8 @@ func (m Model) View() string {
 	case stateRetrieved:
 		bag = bag.Add(m.table)
 	}
+
+	// Help view
 	helpView := lipgloss.NewStyle().Margin(0, 1).Render(m.help.View(bag))
 	elements = append(elements, helpView)
 

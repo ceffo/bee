@@ -35,7 +35,7 @@ func newRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 	}
 
-	cmd.PersistentFlags().StringP(FlagWordlist, "w", "data/words.txt", "path to the word list file")
+	cmd.PersistentFlags().StringP(FlagWordlist, "w", "data/en.txt", "path to the word list file")
 	cmd.PersistentFlags().String(FlagLogfile, "bee.log", "path to the log file")
 
 	return cmd

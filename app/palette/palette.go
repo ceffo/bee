@@ -4,6 +4,7 @@ import "github.com/charmbracelet/lipgloss"
 
 var (
 	Prompt    = lipgloss.NewStyle().Foreground(lipgloss.Color("#931e93"))
+	Details   = lipgloss.NewStyle().Foreground(lipgloss.Color("#934e13"))
 	Positive  = lipgloss.NewStyle().Foreground(lipgloss.Color("#00ff00"))
 	Error     = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000"))
 	Primary   = lipgloss.NewStyle().Foreground(lipgloss.Color("#ede2c4"))
