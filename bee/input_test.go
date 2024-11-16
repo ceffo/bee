@@ -1,230 +1,172 @@
-package bee
+package bee_test
 
 import (
 	"testing"
 
+	"ceffo.com/bee/bee"
+	"ceffo.com/bee/pkg/must"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestInput_IsPangram(t *testing.T) {
-	type fields struct {
-		center  rune
-		letters []rune
-	}
-	type args struct {
-		word string
-	}
+func TestInput_New(t *testing.T) {
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
+		name    string
+		input   string
+		wantErr error
 	}{
 		{
-			name: "empty",
-			fields: fields{
-				letters: []rune{'A', 'B', 'C'},
-			},
-			args: args{
-				word: "",
-			},
-			want: false,
+			name:    "no letters",
+			wantErr: bee.ErrInvalidInputSize,
 		},
 		{
-			name: "not pangram",
-			fields: fields{
-				letters: []rune{'A', 'B', 'C'},
-			},
-			args: args{
-				word: "BCBCBC",
-			},
-			want: false,
+			name:    "not enough letters",
+			input:   "A",
+			wantErr: bee.ErrInvalidInputSize,
 		},
 		{
-			name: "pangram same letters",
-			fields: fields{
-				letters: []rune{'A', 'B', 'C'},
-			},
-			args: args{
-				word: "ABC",
-			},
-			want: true,
+			name:    "duplicate letters",
+			input:   "ABCDEFA",
+			wantErr: bee.ErrDuplicateLetters,
 		},
 		{
-			name: "pangram more letters",
-			fields: fields{
-				letters: []rune{'A', 'B', 'C'},
-			},
-			args: args{
-				word: "ABCCBA",
-			},
-			want: true,
+			name:    "valid",
+			input:   "ABCDEFG",
+			wantErr: nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			i := Input{
-				center:  tt.fields.center,
-				letters: tt.fields.letters,
-			}
-			got := i.IsPangram(tt.args.word)
+			_, err := bee.NewInputFrom(tt.input)
+			assert.ErrorIs(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestInput_IsPangram(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		word  string
+		want  bool
+	}{
+		{
+			name: "empty",
+			want: false,
+		},
+		{
+			name:  "not pangram",
+			input: "abcdefg",
+			word:  "bcbcbc",
+			want:  false,
+		},
+		{
+			name:  "pangram same letters",
+			input: "abcdefg",
+			word:  "abcdefg",
+			want:  true,
+		},
+		{
+			name:  "pangram more letters",
+			input: "abcdefg",
+			word:  "abcdefgab",
+			want:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			i := must.NoError(bee.NewInputFrom("abcdefg"))
+			got := i.IsPangram(tt.word)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestInput_IsExactPangram(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		word  string
+		want  bool
+	}{
+		{
+			name: "empty",
+			want: false,
+		},
+		{
+			name:  "not pangram",
+			input: "abcdefg",
+			word:  "bcbcbc",
+			want:  false,
+		},
+		{
+			name:  "pangram more letters",
+			input: "abcdefg",
+			word:  "abcdefgab",
+			want:  false,
+		},
+		{
+			name:  "exact pangram",
+			input: "abcdefg",
+			word:  "abcdefg",
+			want:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			i := must.NoError(bee.NewInputFrom("abcdefg"))
+			got := i.IsExactPangram(tt.word)
 			assert.Equal(t, tt.want, got)
 		})
 	}
 }
 
 func TestInput_Score(t *testing.T) {
-	type fields struct {
-		center  rune
-		letters []rune
-	}
-	type args struct {
-		word string
-	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   int
+		name string
+		word string
+		want int
 	}{
 		{
-			name: "empty",
-			fields: fields{
-				letters: []rune{'A', 'B', 'C'},
-			},
-			args: args{
-				word: "",
-			},
+			name: "empty word",
+			word: "",
 			want: 0,
 		},
 		{
 			name: "less than 4",
-			fields: fields{
-				letters: []rune{'A', 'B', 'C'},
-			},
-			args: args{
-				word: "ABC",
-			},
+			word: "abc",
 			want: 0,
 		},
 		{
 			name: "4 letters",
-			fields: fields{
-				letters: []rune{'A', 'B', 'C', 'D', 'E', 'F', 'G'},
-			},
-			args: args{
-				word: "ABCA",
-			},
+			word: "abca",
 			want: 1,
 		},
 		{
 			name: "5 letters",
-			fields: fields{
-				letters: []rune{'A', 'B', 'C', 'D', 'E', 'F', 'G'},
-			},
-			args: args{
-				word: "ABCAB",
-			},
+			word: "abcab",
 			want: 5,
 		},
 		{
 			name: "7 letters - not pangram",
-			fields: fields{
-				letters: []rune{'A', 'B', 'C', 'D', 'E', 'F', 'G'},
-			},
-			args: args{
-				word: "ABCDEFA",
-			},
+			word: "ABCDEFA",
 			want: 7,
 		},
 		{
 			name: "7 letters - pangram",
-			fields: fields{
-				letters: []rune{'A', 'B', 'C', 'D', 'E', 'F', 'G'},
-			},
-			args: args{
-				word: "ABCDEFG",
-			},
+			word: "ABCDEFG",
 			want: 14,
 		},
 		{
 			name: "7 letters - longer pangram",
-			fields: fields{
-				letters: []rune{'A', 'B', 'C', 'D', 'E', 'F', 'G'},
-			},
-			args: args{
-				word: "ABCDEFGAA",
-			},
+			word: "ABCDEFGAA",
 			want: 16,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			i := Input{
-				center:  tt.fields.center,
-				letters: tt.fields.letters,
-			}
-			got := i.Score(tt.args.word)
+			i := must.NoError(bee.NewInputFrom("abcdefg"))
+			got := i.Score(tt.word)
 			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-func TestInput_Validate(t *testing.T) {
-	type fields struct {
-		center  rune
-		letters []rune
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		wantErr error
-	}{
-		{
-			name:    "all empty",
-			wantErr: ErrInvalidInputSize,
-		},
-		{
-			name: "letters empty",
-			fields: fields{
-				center:  'A',
-				letters: []rune{},
-			},
-			wantErr: ErrInvalidInputSize,
-		},
-		{
-			name: "center not in letters",
-			fields: fields{
-				center:  'A',
-				letters: []rune{'B', 'C', 'D', 'E', 'F', 'G', 'H'},
-			},
-			wantErr: ErrCenterNotInInput,
-		},
-		{
-			name: "duplicate letters",
-			fields: fields{
-				center:  'A',
-				letters: []rune{'A', 'B', 'C', 'D', 'E', 'F', 'A'},
-			},
-			wantErr: ErrDuplicateLetters,
-		},
-		{
-			name: "valid",
-			fields: fields{
-				center:  'A',
-				letters: []rune{'A', 'B', 'C', 'D', 'E', 'F', 'G'},
-			},
-			wantErr: nil,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			i := &Input{
-				center:  tt.fields.center,
-				letters: tt.fields.letters,
-			}
-			err := i.Validate()
-			assert.ErrorIs(t, err, tt.wantErr)
 		})
 	}
 }

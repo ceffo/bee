@@ -63,7 +63,7 @@ func TestBeesolve_SolveFor(t *testing.T) {
 		want  []string
 	}{
 		{
-			input: must.NoError(NewInput('N', []rune{'M', 'A', 'U', 'L', 'Y', 'T'})),
+			input: must.NoError(NewInput('N', 'M', 'A', 'U', 'L', 'Y', 'T')),
 			want: []string{
 				"MANUAL",
 				"MANUALLY",
@@ -71,7 +71,7 @@ func TestBeesolve_SolveFor(t *testing.T) {
 			},
 		},
 		{
-			input: must.NoError(NewInput('M', []rune{'N', 'A', 'U', 'L', 'Y', 'T'})),
+			input: must.NoError(NewInput('M', 'N', 'A', 'U', 'L', 'Y', 'T')),
 			want: []string{
 				"MANUAL",
 				"MANUALLY",

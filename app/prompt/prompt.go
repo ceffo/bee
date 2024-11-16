@@ -11,10 +11,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
+	mapset "github.com/deckarep/golang-set/v2"
 
 	"ceffo.com/bee/app/common"
 	"ceffo.com/bee/app/palette"
 	"ceffo.com/bee/bee"
+	"ceffo.com/bee/pkg/slices"
 )
 
 const (
@@ -24,27 +26,37 @@ const (
 
 // DoneMsg is the message sent when the prompt is done
 type DoneMsg struct {
-	Valid    bool
 	BeeInput *bee.Input
 }
 
+type promptState int
+
+const (
+	promptStatePrompt promptState = iota
+	promptStateDone
+)
+
 // Model is the model for the prompt
 type Model struct {
-	letters []rune
-	valid   bool
-	done    bool
-
+	letters     []rune
+	input       *bee.Input
+	state       promptState
 	err         error
 	errMsgTimer timer.Model
 	timerID     int
 }
 
 // New creates a new prompt model
-func New() Model {
-	return Model{
+func New(letters ...rune) Model {
+	m := Model{
 		// create a stopped timer
 		errMsgTimer: timer.NewWithInterval(0, timerTick),
+		state:       promptStatePrompt,
 	}
+	if len(letters) <= bee.NumLetters {
+		m.SetLetters(letters)
+	}
+	return m
 }
 
 type keyMap struct {
@@ -71,6 +83,10 @@ func (m Model) ShortHelp() []key.Binding {
 	return bindings
 }
 
+func (m Model) IsValid() bool {
+	return m.input != nil
+}
+
 func (m Model) keyMap() keyMap {
 	km := keyMap{
 		quit: key.NewBinding(
@@ -93,13 +109,14 @@ func (m Model) keyMap() keyMap {
 	hasLetters := len(m.letters) > 0
 	km.reset.SetEnabled(hasLetters)
 	km.remove.SetEnabled(hasLetters)
-	km.enter.SetEnabled(m.valid)
+	km.enter.SetEnabled(m.IsValid())
 	return km
 }
 
 // Init initializes the model
-func (m Model) Init() tea.Cmd {
-	return m.errMsgTimer.Init()
+func (m *Model) Init() tea.Cmd {
+	cmds := common.NewMsgBatch(m.errMsgTimer.Init())
+	return cmds.Cmd()
 }
 
 func (m Model) triggerError(err error) (Model, tea.Cmd) {
@@ -147,40 +164,47 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (Model, tea.Cmd) {
 		if err != nil {
 			return m.triggerError(err)
 		}
-		m.letters = append(m.letters, newRune)
-		m.valid = len(m.letters) == bee.NumLetters
+		m.SetLetters(append(m.letters, newRune))
 	}
 	if key.Matches(msg, km.remove) {
 		if len(m.letters) > 0 {
-			m.letters = m.letters[:len(m.letters)-1]
-			m.valid = false
+			m.SetLetters(m.letters[:len(m.letters)-1])
 		}
 	}
 	if key.Matches(msg, km.reset) {
-		m.letters = nil
-		m.valid = false
-		m.done = false
+		m.SetLetters(nil)
 	}
 	if key.Matches(msg, km.enter) {
-		if m.valid {
-			m.done = true
-			return m, m.promptValidated
-		}
+		return m.ValidatePrompt()
 	}
 	return m, nil
 }
 
-func (m Model) promptValidated() tea.Msg {
-	var input *bee.Input
-	if m.valid {
-		var err error
-		input, err = bee.NewInput(m.letters[0], m.letters[1:])
+func (m *Model) SetLetters(letters []rune) {
+	log.Infof("setting letters: %v", letters)
+	letters, err := validateLetters(letters)
+	if err != nil {
+		log.Errorf("invalid letters: %v", err)
+		return
+	}
+	m.letters = letters
+	m.input = nil
+	if len(letters) == bee.NumLetters {
+		input, err := bee.NewInput(letters...)
 		if err != nil {
-			log.Errorf("error creating input: %v", err)
-			return DoneMsg{Valid: false}
+			log.Error("failed to create input: %w", err)
+		} else {
+			m.input = input
 		}
 	}
-	return DoneMsg{Valid: m.valid, BeeInput: input}
+}
+
+func (m *Model) ValidatePrompt() (Model, tea.Cmd) {
+	if m.input == nil {
+		return *m, nil
+	}
+	m.state = promptStateDone
+	return *m, common.ToCmd(DoneMsg{BeeInput: m.input})
 }
 
 func validateNewRune(r rune, letters []rune) error {
@@ -194,6 +218,20 @@ func validateNewRune(r rune, letters []rune) error {
 		}
 	}
 	return nil
+}
+
+func validateLetters(letters []rune) ([]rune, error) {
+	letters = slices.Map(letters, unicode.ToUpper)
+	lettersSet := mapset.NewSet(letters...)
+	if lettersSet.Cardinality() != len(letters) {
+		return nil, fmt.Errorf("duplicate letters")
+	}
+	for _, l := range letters {
+		if l < 'A' || l > 'Z' {
+			return nil, fmt.Errorf("not a letter between A and Z: %c", l)
+		}
+	}
+	return letters, nil
 }
 
 var (
@@ -224,7 +262,7 @@ func (m Model) View() string {
 			strLetters += " " + NormalLetterStyle.Render(strL)
 		}
 	}
-	if m.done {
+	if m.state == promptStateDone {
 		return strLetters
 	}
 	strInput := strLetters

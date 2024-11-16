@@ -9,11 +9,6 @@ import (
 	"ceffo.com/bee/core"
 )
 
-const (
-	FlagWordlist = "wordlist"
-	FlagLogfile  = "log"
-)
-
 type BeeCLI struct {
 	rootCmd *cobra.Command
 }
@@ -37,6 +32,7 @@ func newRootCmd() *cobra.Command {
 
 	cmd.PersistentFlags().StringP(FlagWordlist, "w", "data/en.txt", "path to the word list file")
 	cmd.PersistentFlags().String(FlagLogfile, "bee.log", "path to the log file")
+	cmd.Flags().StringP(FlagLetters, "l", "", "Letters to use, starting with the center letter")
 
 	return cmd
 }
@@ -56,6 +52,11 @@ func handleRootCmd(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
+	input, err := cmd.Flags().GetString(FlagLetters)
+	if err != nil {
+		return err
+	}
+
 	c, err := core.New(
 		core.WithFileLogging(logFile),
 		core.WithSourceMaker(wordlistFile),
@@ -65,5 +66,5 @@ func handleRootCmd(cmd *cobra.Command, _ []string) error {
 	}
 	defer c.Close()
 	a := app.New(c)
-	return a.Run()
+	return a.Run(&app.Config{Input: input})
 }

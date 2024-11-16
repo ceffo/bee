@@ -17,16 +17,28 @@ func New(c *core.Core) *App {
 	return &App{c}
 }
 
-func (a *App) Run() error {
+type Config struct {
+	Input string
+}
+
+func (a *App) Run(config *Config) error {
 	source := a.core.Source()
 	solver := bee.NewSolver(source)
-	model := spellbee.NewModel(solver)
-	opts := []tea.ProgramOption{}
 
-	opts = append(opts, tea.WithAltScreen())
+	modelOpts := []spellbee.Option{}
+	if config.Input != "" {
+		modelOpts = append(modelOpts, spellbee.WithInput(config.Input))
+	}
+	model, err := spellbee.New(solver, modelOpts...)
+	if err != nil {
+		return err
+	}
+	programOpts := []tea.ProgramOption{}
 
-	app := tea.NewProgram(model, opts...)
-	_, err := app.Run()
+	programOpts = append(programOpts, tea.WithAltScreen())
+
+	app := tea.NewProgram(model, programOpts...)
+	_, err = app.Run()
 	if err != nil {
 		log.Errorf("Error running app: %v", err)
 	}

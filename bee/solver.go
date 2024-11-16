@@ -42,6 +42,5 @@ func satisfies(word string, input *Input) bool {
 	}
 	wordRunes := []rune(word)
 	wordSet := mapset.NewSet(wordRunes...)
-	letters := mapset.NewSet(input.letters...)
-	return wordSet.Contains(input.center) && wordSet.IsSubset(letters)
+	return wordSet.Contains(input.center) && wordSet.IsSubset(input.lettersSet)
 }

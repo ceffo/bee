@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"unicode"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -84,11 +83,33 @@ type Model struct {
 	height  int
 }
 
-func NewModel(solver *bee.Solver) Model {
+// Option is a model option
+type Option func(m *Model) (*Model, error)
+
+// WithInput sets the letters for the model
+func WithInput(letters string) Option {
+	return func(m *Model) (*Model, error) {
+		m.prompt.SetLetters([]rune(letters))
+		return m, nil
+	}
+}
+
+// New creates a new spellbee model
+func New(solver *bee.Solver, opts ...Option) (*Model, error) {
 	log.Info("Creating new spellbee model")
-	return *(&Model{
+	m := &Model{
 		solver: solver,
-	}).reset()
+	}
+	m = m.reset()
+	for _, opt := range opts {
+		var err error
+		m, err = opt(m)
+		if err != nil {
+			log.Errorf("Error applying option: %v", err)
+			return nil, err
+		}
+	}
+	return m, nil
 }
 
 func newColumnTable() columntable.Model {
@@ -195,7 +216,8 @@ func listenToResults(stream wordsource.Stream, input *bee.Input) tea.Cmd {
 
 func (m Model) Init() tea.Cmd {
 	log.Info("Initializing spellbee model")
-	return tea.Batch(m.prompt.Init(), m.spinner.Tick)
+	cmds := common.NewMsgBatch(m.prompt.Init(), m.spinner.Tick)
+	return cmds.Cmd()
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -276,14 +298,11 @@ func (m *Model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 
 func (m *Model) handlePromptDoneMsg(msg prompt.DoneMsg) tea.Cmd {
 	log.Info("Received prompt done message")
-	if msg.Valid {
-		input := msg.BeeInput
-		m.state = stateRetrieving
-		m.input = input
-		stream := m.solver.SolveFor(input)
-		return tea.Batch(listenToResults(stream, input), m.spinner.Tick)
-	}
-	return nil
+	input := msg.BeeInput
+	m.state = stateRetrieving
+	m.input = input
+	stream := m.solver.SolveFor(input)
+	return tea.Batch(listenToResults(stream, input), m.spinner.Tick)
 }
 
 func (m *Model) handleNewResultMsg(msg newResultMsg) tea.Cmd {
@@ -410,7 +429,7 @@ func renderWord(word string, input *bee.Input) string {
 	if input.IsPangram(word) {
 		letterStyle = prompt.PangramLetterStyle
 	}
-	center := unicode.ToUpper(input.Center())
+	center := input.Center()
 	sb := strings.Builder{}
 	for _, l := range word {
 		if l == center {

@@ -10,10 +10,6 @@ import (
 	"ceffo.com/bee/core"
 )
 
-const (
-	FlagLetters = "letters"
-)
-
 func newSolveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "solve",
@@ -32,7 +28,7 @@ func solveCmd(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	// make an input out of the letters
-	input, err := bee.NewFrom(letters)
+	input, err := bee.NewInputFrom(letters)
 	if err != nil {
 		return err
 	}

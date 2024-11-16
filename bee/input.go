@@ -2,9 +2,9 @@ package bee
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 
 	mapset "github.com/deckarep/golang-set/v2"
 
@@ -13,7 +13,6 @@ import (
 
 var (
 	ErrInvalidInputSize = errors.New("invalid input size")
-	ErrCenterNotInInput = errors.New("center letter not in input")
 	ErrDuplicateLetters = errors.New("duplicate letters in input")
 )
 
@@ -28,22 +27,8 @@ const (
 
 // Input represents the input to the Bee solver
 type Input struct {
-	center  rune
-	letters []rune
-}
-
-func (i *Input) Validate() error {
-	if len(i.letters) != NumLetters {
-		return ErrInvalidInputSize
-	}
-	set := mapset.NewSet(i.letters...)
-	if !set.Contains(i.center) {
-		return ErrCenterNotInInput
-	}
-	if set.Cardinality() != NumLetters {
-		return ErrDuplicateLetters
-	}
-	return nil
+	center     rune
+	lettersSet mapset.Set[rune]
 }
 
 func (i *Input) Score(word string) int {
@@ -58,7 +43,7 @@ func (i *Input) Score(word string) int {
 	if l > minWordLength {
 		score = l
 	}
-	if l >= len(i.letters) && i.IsPangram(word) {
+	if l >= i.lettersSet.Cardinality() && i.IsPangram(word) {
 		score += pangramBonus
 	}
 	return score
@@ -69,35 +54,34 @@ func (i *Input) Center() rune {
 }
 
 func (i *Input) IsPangram(word string) bool {
-	letterSet := mapset.NewSet(i.letters...)
 	wordRunes := []rune(strings.ToUpper(word))
 	wordSet := mapset.NewSet(wordRunes...)
-	return letterSet.Equal(wordSet)
+	return i.lettersSet.Equal(wordSet)
 }
 
 func (i *Input) IsExactPangram(word string) bool {
 	return i.IsPangram(word) && len(word) == NumLetters
 }
 
-func NewInput(center rune, letters []rune) (*Input, error) {
-	center = unicode.ToUpper(center)
-	letters = slices.Map(letters, unicode.ToUpper)
-	i := &Input{center: center, letters: append(letters, center)}
-	if err := i.Validate(); err != nil {
-		return nil, err
+// NewInput creates a new input from a set of letters, considering the first letter as the center
+func NewInput(letters ...rune) (*Input, error) {
+	if len(letters) != NumLetters {
+		return nil, fmt.Errorf("%w: expected %d letters, got %d", ErrInvalidInputSize, NumLetters, len(letters))
 	}
-	return i, nil
+	letters = slices.Map(letters, unicode.ToUpper)
+	lettersSet := mapset.NewSet(letters...)
+	if lettersSet.Cardinality() != NumLetters {
+		return nil, ErrDuplicateLetters
+	}
+	return &Input{center: letters[0], lettersSet: lettersSet}, nil
 }
 
-func NewFrom(str string) (*Input, error) {
-	if len(str) != NumLetters {
-		return nil, ErrInvalidInputSize
-	}
-	center, _ := utf8.DecodeRuneInString(str)
-	letters := []rune(str)[1:]
-	return NewInput(center, letters)
+func NewInputFrom(str string) (*Input, error) {
+	return NewInput([]rune(str)...)
 }
 
 func (i *Input) String() string {
-	return string(i.letters)
+	withoutCenter := i.lettersSet.Clone()
+	withoutCenter.Remove(i.center)
+	return fmt.Sprintf("%c|%s", i.center, string(withoutCenter.ToSlice()))
 }
