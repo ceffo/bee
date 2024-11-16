@@ -9,6 +9,10 @@ import (
 	"ceffo.com/bee/wordsource"
 )
 
+const (
+	solverChannelSize = 100
+)
+
 type Solver struct {
 	source wordsource.Maker
 }
@@ -18,7 +22,7 @@ func NewSolver(maker wordsource.Maker) *Solver {
 }
 
 func (t *Solver) SolveFor(input *Input) wordsource.Stream {
-	result := make(chan string, 100)
+	result := make(chan string, solverChannelSize)
 	go func() {
 		log.Infof("Solving for '%s'", input)
 		defer close(result)

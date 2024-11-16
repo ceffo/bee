@@ -3,9 +3,10 @@ package bee_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"ceffo.com/bee/bee"
 	"ceffo.com/bee/pkg/must"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestInput_New(t *testing.T) {
