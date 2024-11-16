@@ -180,19 +180,20 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (Model, tea.Cmd) {
 	return m, nil
 }
 
+// SetLetters sets the letters for the prompt model, validates them, and updates the input field.
+// If the letters are invalid, it logs an error and does not update the model.
 func (m *Model) SetLetters(letters []rune) {
-	log.Infof("setting letters: %v", letters)
-	letters, err := validateLetters(letters)
+	validatedLetters, err := validateLetters(letters)
 	if err != nil {
-		log.Errorf("invalid letters: %v", err)
+		log.Errorf("SetLetters: invalid letters %v: %v", letters, err)
 		return
 	}
-	m.letters = letters
+	m.letters = validatedLetters
 	m.input = nil
 	if len(letters) == bee.NumLetters {
 		input, err := bee.NewInput(letters...)
 		if err != nil {
-			log.Error("failed to create input: %w", err)
+			log.Errorf("SetLetters: failed to create input for letters %v: %v", letters, err)
 		} else {
 			m.input = input
 		}

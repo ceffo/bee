@@ -18,7 +18,7 @@ func NewSolver(maker wordsource.Maker) *Solver {
 }
 
 func (t *Solver) SolveFor(input *Input) wordsource.Stream {
-	result := make(chan string)
+	result := make(chan string, 100)
 	go func() {
 		log.Infof("Solving for '%s'", input)
 		defer close(result)
