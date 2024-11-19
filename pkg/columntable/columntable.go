@@ -17,6 +17,7 @@ const (
 	defaultSeparator = " │ "
 )
 
+// Model is the model for the columntable
 type Model struct {
 	width      int
 	height     int
@@ -37,12 +38,14 @@ func (m Model) keyMap() paginator.KeyMap {
 	return km
 }
 
+// FullHelp returns the full help for the model
 func (m Model) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		m.ShortHelp(),
 	}
 }
 
+// ShortHelp returns the short help for the model
 func (m Model) ShortHelp() []key.Binding {
 	km := m.keyMap()
 	bindings := []key.Binding{
@@ -52,14 +55,17 @@ func (m Model) ShortHelp() []key.Binding {
 	return bindings
 }
 
+// Option is a functional option for the Model
 type Option func(*Model)
 
+// WithSeparator sets the separator for the columntable
 func WithSeparator(s string) Option {
 	return func(m *Model) {
 		m.separator = s
 	}
 }
 
+// WithDotPaginator sets the paginator to use dots
 func WithDotPaginator(activeDot, inactiveDot string) Option {
 	return func(m *Model) {
 		m.paginator.Type = paginator.Dots
@@ -68,6 +74,7 @@ func WithDotPaginator(activeDot, inactiveDot string) Option {
 	}
 }
 
+// WithItemWidth sets the width of the items in the table
 func WithItemWidth(width int) Option {
 	return func(m *Model) {
 		m.itemWidth = width
@@ -88,10 +95,12 @@ func New(opts ...Option) Model {
 	return model
 }
 
+// SetItemWidth sets the width of the items in the table
 func (m *Model) SetItemWidth(width int) {
 	m.itemWidth = width
 }
 
+// SetItems sets the items in the table
 func (m *Model) SetItems(items []string) {
 	m.items = items
 }
@@ -108,6 +117,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
 }
 
+// SetSize sets the size of the table
 func (m *Model) SetSize(width, height int) {
 	m.width = max(width, 0)
 	m.height = max(height, 0)

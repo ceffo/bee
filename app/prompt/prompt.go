@@ -66,12 +66,14 @@ type keyMap struct {
 	quit   key.Binding
 }
 
+// FullHelp returns the full help for the model
 func (m Model) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		m.ShortHelp(),
 	}
 }
 
+// ShortHelp returns the short help for the model
 func (m Model) ShortHelp() []key.Binding {
 	km := m.keyMap()
 	bindings := []key.Binding{
@@ -83,7 +85,8 @@ func (m Model) ShortHelp() []key.Binding {
 	return bindings
 }
 
-func (m Model) IsValid() bool {
+// IsInputValid returns whether the input is valid
+func (m Model) IsInputValid() bool {
 	return m.input != nil
 }
 
@@ -109,7 +112,7 @@ func (m Model) keyMap() keyMap {
 	hasLetters := len(m.letters) > 0
 	km.reset.SetEnabled(hasLetters)
 	km.remove.SetEnabled(hasLetters)
-	km.enter.SetEnabled(m.IsValid())
+	km.enter.SetEnabled(m.IsInputValid())
 	return km
 }
 
@@ -175,7 +178,7 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (Model, tea.Cmd) {
 		m.SetLetters(nil)
 	}
 	if key.Matches(msg, km.enter) {
-		return m.ValidatePrompt()
+		return m.onPromptValidated()
 	}
 	return m, nil
 }
@@ -200,7 +203,7 @@ func (m *Model) SetLetters(letters []rune) {
 	}
 }
 
-func (m *Model) ValidatePrompt() (Model, tea.Cmd) {
+func (m *Model) onPromptValidated() (Model, tea.Cmd) {
 	if m.input == nil {
 		return *m, nil
 	}
@@ -236,11 +239,14 @@ func validateLetters(letters []rune) ([]rune, error) {
 }
 
 var (
-	baseStyle          = lipgloss.NewStyle()
-	promptStyle        = baseStyle.Inherit(palette.Prompt)
-	errorStyle         = baseStyle.Inherit(palette.Error)
-	CenterLetterStyle  = baseStyle.Inherit(palette.Secondary).Bold(true)
-	NormalLetterStyle  = baseStyle.Inherit(palette.Primary)
+	baseStyle   = lipgloss.NewStyle()
+	promptStyle = baseStyle.Inherit(palette.Prompt)
+	errorStyle  = baseStyle.Inherit(palette.Error)
+	// CenterLetterStyle is the style for the center letter
+	CenterLetterStyle = baseStyle.Inherit(palette.Secondary).Bold(true)
+	// NormalLetterStyle is the style for the normal letters
+	NormalLetterStyle = baseStyle.Inherit(palette.Primary)
+	// PangramLetterStyle is the style for the pangram letters
 	PangramLetterStyle = baseStyle.Inherit(palette.Tertiary)
 )
 

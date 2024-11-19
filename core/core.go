@@ -10,13 +10,16 @@ import (
 	"ceffo.com/bee/wordsource/reader"
 )
 
+// Core is the core of the application
 type Core struct {
 	cleanupFuncs []func()
 	source       wordsource.Maker
 }
 
+// Option is a functional option for the Core
 type Option func(*Core) error
 
+// New creates a new Core
 func New(opts ...Option) (*Core, error) {
 	core := &Core{}
 	for _, opt := range opts {
@@ -30,10 +33,12 @@ func New(opts ...Option) (*Core, error) {
 	return core, nil
 }
 
+// Source returns the word source maker
 func (c *Core) Source() wordsource.Maker {
 	return c.source
 }
 
+// Close closes the Core
 func (c *Core) Close() {
 	// cleanup from last to first
 	for i := len(c.cleanupFuncs) - 1; i >= 0; i-- {
@@ -42,6 +47,7 @@ func (c *Core) Close() {
 	c.cleanupFuncs = nil
 }
 
+// WithFileLogging adds file logging to the Core
 func WithFileLogging(logFileName string) Option {
 	return func(c *Core) error {
 		cleanupFunc, err := logging.SetupFileLogging(logFileName)
@@ -53,6 +59,7 @@ func WithFileLogging(logFileName string) Option {
 	}
 }
 
+// WithStdoutLogging adds stdout logging to the Core
 func WithStdoutLogging() Option {
 	return func(c *Core) error {
 		cleanupFunc, err := logging.SetupStdoutLogging()
@@ -64,6 +71,7 @@ func WithStdoutLogging() Option {
 	}
 }
 
+// WithSourceMaker adds a word source maker to the Core
 func WithSourceMaker(wordListFileName string) Option {
 	return func(c *Core) error {
 		fileCleanup, sourceMaker, err := sourceMaker(wordListFileName)

@@ -9,10 +9,12 @@ import (
 	"ceffo.com/bee/core"
 )
 
+// BeeCLI is the CLI for the Bee solver
 type BeeCLI struct {
 	rootCmd *cobra.Command
 }
 
+// NewBeeCLI creates a new BeeCLI
 func NewBeeCLI() *BeeCLI {
 	r := newRootCmd()
 	r.AddCommand(
@@ -37,6 +39,7 @@ func newRootCmd() *cobra.Command {
 	return cmd
 }
 
+// Run runs the CLI
 func (b *BeeCLI) Run(ctx context.Context) error {
 	return b.rootCmd.ExecuteContext(ctx)
 }

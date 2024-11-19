@@ -69,6 +69,7 @@ func (s sortorder) String() string {
 	}
 }
 
+// Model is the spellbee model
 type Model struct {
 	solver  *bee.Solver
 	prompt  prompt.Model
@@ -172,12 +173,14 @@ type keyMap struct {
 	sort  key.Binding
 }
 
+// FullHelp returns the full help for the model
 func (m Model) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		m.ShortHelp(),
 	}
 }
 
+// ShortHelp returns the short help for the model
 func (m Model) ShortHelp() []key.Binding {
 	km := m.keyMap()
 	bindings := []key.Binding{
@@ -214,12 +217,14 @@ func listenToResults(stream wordsource.Stream, input *bee.Input) tea.Cmd {
 	}
 }
 
+// Init initializes the model
 func (m Model) Init() tea.Cmd {
 	log.Info("Initializing spellbee model")
 	cmds := common.NewMsgBatch(m.prompt.Init(), m.spinner.Tick)
 	return cmds.Cmd()
 }
 
+// Update updates the model
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	msgs := common.NewMsgBatch()
@@ -345,6 +350,7 @@ var (
 		Bold(true)
 )
 
+// View returns the view for the model
 func (m Model) View() string {
 	elements := []string{}
 	titleView := titleStyle.Width(m.width).Render("Bee Solver")

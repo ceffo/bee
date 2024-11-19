@@ -13,14 +13,17 @@ const (
 	solverChannelSize = 100
 )
 
+// Solver solves the Bee game
 type Solver struct {
 	source wordsource.Maker
 }
 
+// NewSolver creates a new Solver
 func NewSolver(maker wordsource.Maker) *Solver {
 	return &Solver{source: maker}
 }
 
+// SolveFor solves the Bee game for the given input
 func (t *Solver) SolveFor(input *Input) wordsource.Stream {
 	result := make(chan string, solverChannelSize)
 	go func() {

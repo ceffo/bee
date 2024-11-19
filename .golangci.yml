@@ -111,7 +111,9 @@ linters-settings:
         disabled: true
       - name: unused-parameter
       - name: unused-receiver
-
+      - name: exported
+        arguments:
+          - disableStutteringCheck
 issues:
   exclude-rules:
     - path: (.+)_test\.go
@@ -119,5 +121,9 @@ issues:
         - dupl
         - mnd
         - lll
+  include:
+      - EXC0012  # EXC0012 revive: Annoying issue about not having a comment. The rare codebase has such comments
+      - EXC0014  # EXC0014 revive: Annoying issue about not having a comment. The rare codebase has such comments
+
 run:
   timeout: 5m

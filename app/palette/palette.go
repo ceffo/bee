@@ -2,6 +2,7 @@ package palette
 
 import "github.com/charmbracelet/lipgloss"
 
+// Palette colors
 var (
 	Prompt    = lipgloss.NewStyle().Foreground(lipgloss.Color("#931e93"))
 	Details   = lipgloss.NewStyle().Foreground(lipgloss.Color("#934e13"))

@@ -9,18 +9,22 @@ import (
 	"ceffo.com/bee/core"
 )
 
+// App is the main application struct
 type App struct {
 	core *core.Core
 }
 
+// New creates a new App
 func New(c *core.Core) *App {
 	return &App{c}
 }
 
+// Config is the configuration for the App
 type Config struct {
 	Input string
 }
 
+// Run runs the App
 func (a *App) Run(config *Config) error {
 	source := a.core.Source()
 	solver := bee.NewSolver(source)

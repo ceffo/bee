@@ -12,7 +12,9 @@ import (
 )
 
 var (
+	// ErrInvalidInputSize is returned when the input size is invalid
 	ErrInvalidInputSize = errors.New("invalid input size")
+	// ErrDuplicateLetters is returned when there are duplicate letters in the input
 	ErrDuplicateLetters = errors.New("duplicate letters in input")
 )
 
@@ -31,6 +33,7 @@ type Input struct {
 	lettersSet mapset.Set[rune]
 }
 
+// Score returns the score of a word
 func (i *Input) Score(word string) int {
 	l := len(word)
 	if l < minWordLength {
@@ -49,16 +52,19 @@ func (i *Input) Score(word string) int {
 	return score
 }
 
+// Center returns the center letter
 func (i *Input) Center() rune {
 	return i.center
 }
 
+// IsPangram returns true if the word is a pangram
 func (i *Input) IsPangram(word string) bool {
 	wordRunes := []rune(strings.ToUpper(word))
 	wordSet := mapset.NewSet(wordRunes...)
 	return i.lettersSet.Equal(wordSet)
 }
 
+// IsExactPangram returns true if the word is a pangram and has the exact number of letters
 func (i *Input) IsExactPangram(word string) bool {
 	return i.IsPangram(word) && len(word) == NumLetters
 }
@@ -76,10 +82,12 @@ func NewInput(letters ...rune) (*Input, error) {
 	return &Input{center: letters[0], lettersSet: lettersSet}, nil
 }
 
+// NewInputFrom creates a new input from a string
 func NewInputFrom(str string) (*Input, error) {
 	return NewInput([]rune(str)...)
 }
 
+// String returns a string representation of the input
 func (i *Input) String() string {
 	withoutCenter := i.lettersSet.Clone()
 	withoutCenter.Remove(i.center)
