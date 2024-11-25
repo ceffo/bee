@@ -5,7 +5,7 @@ go 1.23.2
 require (
 	github.com/brianvoe/gofakeit/v7 v7.1.2
 	github.com/charmbracelet/bubbles v0.20.0
-	github.com/charmbracelet/bubbletea v1.2.2
+	github.com/charmbracelet/bubbletea v1.2.3
 	github.com/charmbracelet/lipgloss v1.0.0
 	github.com/charmbracelet/log v0.4.0
 	github.com/deckarep/golang-set/v2 v2.6.0
